@@ -1,11 +1,13 @@
 {{>partial_header}}
 use hyper;
 use std::collections::HashMap;
+use hyper::Body;
+use hyper::client::connect::Connect;
 
-pub struct Configuration<C: hyper::client::connect::Connect> {
+pub struct Configuration<C: hyper::client::connect::Connect, B = Body> {
   pub base_path: String,
   pub user_agent: Option<String>,
-  pub client: hyper::client::Client<C>,
+  pub client: hyper::client::Client<C, B>,
   pub basic_auth: Option<BasicAuth>,
   pub oauth_access_token: Option<String>,
   pub api_key: Option<ApiKey>,
@@ -19,8 +21,13 @@ pub struct ApiKey {
   pub key: String,
 }
 
-impl<C: hyper::client::connect::Connect> Configuration<C> {
-  pub fn new(client: hyper::client::Client<C>) -> Configuration<C> {
+impl<C, B> Configuration<C, B> 
+where
+    C: Connect + Clone + Send + Sync + 'static,
+    B: Payload + Send + 'static,
+    B::Data: Send
+{
+  pub fn new(client: hyper::client::Client<C, B>) -> Configuration<C, B> {
     Configuration {
       base_path: "{{{basePath}}}".to_owned(),
       user_agent: {{#httpUserAgent}}Some("{{{.}}}".to_owned()){{/httpUserAgent}}{{^httpUserAgent}}Some("Swagger-Codegen/{{version}}/rust".to_owned()){{/httpUserAgent}},

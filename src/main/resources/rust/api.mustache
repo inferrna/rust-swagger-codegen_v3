@@ -10,15 +10,22 @@ use futures;
 use futures::{Future, Stream};
 
 use hyper::header::UserAgent;
+use hyper::Body;
+use hyper::client::connect::Connect;
 
 use super::{Error, configuration};
 
-pub struct {{{classname}}}Client<C: hyper::client::connect::Connect> {
-    configuration: Rc<configuration::Configuration<C>>,
+pub struct {{{classname}}}Client<C: hyper::client::connect::Connect, B = Body> {
+    configuration: Rc<configuration::Configuration<C, B>>,
 }
 
-impl<C: hyper::client::connect::Connect> {{{classname}}}Client<C> {
-    pub fn new(configuration: Rc<configuration::Configuration<C>>) -> {{{classname}}}Client<C> {
+impl<C, B> {{{classname}}}Client<C, B>
+where
+    C: Connect + Clone + Send + Sync + 'static,
+    B: Payload + Send + 'static,
+    B::Data: Send,
+{
+    pub fn new(configuration: Rc<configuration::Configuration<C, B>>) -> {{{classname}}}Client<C, B> {
         {{{classname}}}Client {
             configuration: configuration,
         }
@@ -34,11 +41,17 @@ pub trait {{classname}} {
 }
 
 
-impl<C: hyper::client::connect::Connect>{{classname}} for {{classname}}Client<C> {
+impl<C, B>{{classname}} for {{classname}}Client<C, B>
+where
+    C: Connect + Clone + Send + Sync + 'static,
+    B: Payload + Send + 'static,
+    B::Data: Send,
+
+{
 {{#operations}}
 {{#operation}}
     fn {{{operationId}}}(&self, {{#allParams}}{{paramName}}: {{#isString}}&str{{/isString}}{{#isUuid}}&str{{/isUuid}}{{^isString}}{{^isUuid}}{{^isPrimitiveType}}{{^isContainer}}::models::{{/isContainer}}{{/isPrimitiveType}}{{{dataType}}}{{/isUuid}}{{/isString}}{{#hasMore}}, {{/hasMore}}{{/allParams}}) -> Box<Future<Item = {{^returnType}}(){{/returnType}}{{#returnType}}{{{.}}}{{/returnType}}, Error = Error<serde_json::Value>>> {
-        let configuration: &configuration::Configuration<C> = self.configuration.borrow();
+        let configuration: &configuration::Configuration<C, B> = self.configuration.borrow();
 
 {{#hasAuthMethods}}
         let mut auth_headers = HashMap::<String, String>::new();
@@ -104,7 +117,10 @@ impl<C: hyper::client::connect::Connect>{{classname}} for {{classname}}Client<C>
         // }
         let mut uri: hyper::Uri = uri_str.parse().unwrap();
 
-        let mut req = hyper::Request::new(method, uri);
+        let mut req = hyper::Request::builder()
+            .method(method)
+            .uri(uri)
+            .body(Body::empty()).unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut().set(UserAgent::new(Cow::Owned(user_agent.clone())));
