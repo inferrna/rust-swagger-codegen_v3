@@ -1,0 +1,43 @@
+use std::rc::Rc;
+
+use hyper;
+use super::configuration::Configuration;
+
+pub struct APIClient<C: hyper::client::Connect> {
+  configuration: Rc<Configuration<C>>,
+{{#apiInfo}}
+{{#apis}}
+{{#operations.[0]}}
+  {{classFilename}}: Box<::apis::{{classname}}>,
+{{/operations.[0]}}
+{{/apis}}
+{{/apiInfo}}
+}
+
+impl<C: hyper::client::Connect> APIClient<C> {
+  pub fn new(configuration: Configuration<C>) -> APIClient<C> {
+    let rc = Rc::new(configuration);
+
+    APIClient {
+      configuration: rc.clone(),
+{{#apiInfo}}
+{{#apis}}
+{{#operations.[0]}}
+      {{classFilename}}: Box::new(::apis::{{classname}}Client::new(rc.clone())),
+{{/operations.[0]}}
+{{/apis}}
+{{/apiInfo}}
+    }
+  }
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations.[0]}}
+  pub fn {{classFilename}}(&self) -> &::apis::{{classname}}{
+    self.{{classFilename}}.as_ref()
+  }
+{{/operations.[0]}}
+{{/apis}}
+{{/apiInfo}}
+
+}
