@@ -15,3 +15,8 @@ Check out [OpenAPI-Spec](https://github.com/OAI/OpenAPI-Specification) for addit
 Use it as generated module as described here https://github.com/swagger-api/swagger-codegen/tree/3.0.0#making-your-own-codegen-modules
 
 Now it's on very early stage. Tested only on https://github.com/TinkoffCreditSystems/invest-openapi/blob/master/src/docs/swagger-ui/swagger.yaml
+
+##Known issues:
+- no version and package name in Cargo.toml
+- sometimes `String` type comes as `::module::String`
+- have to manual put `use bigdecimal::BigDecimal;` where it needed
