@@ -13,11 +13,11 @@ use hyper::header::UserAgent;
 
 use super::{Error, configuration};
 
-pub struct {{{classname}}}Client<C: hyper::client::Connect> {
+pub struct {{{classname}}}Client<C: hyper::client::connect::Connect> {
     configuration: Rc<configuration::Configuration<C>>,
 }
 
-impl<C: hyper::client::Connect> {{{classname}}}Client<C> {
+impl<C: hyper::client::connect::Connect> {{{classname}}}Client<C> {
     pub fn new(configuration: Rc<configuration::Configuration<C>>) -> {{{classname}}}Client<C> {
         {{{classname}}}Client {
             configuration: configuration,
@@ -34,7 +34,7 @@ pub trait {{classname}} {
 }
 
 
-impl<C: hyper::client::Connect>{{classname}} for {{classname}}Client<C> {
+impl<C: hyper::client::connect::Connect>{{classname}} for {{classname}}Client<C> {
 {{#operations}}
 {{#operation}}
     fn {{{operationId}}}(&self, {{#allParams}}{{paramName}}: {{#isString}}&str{{/isString}}{{#isUuid}}&str{{/isUuid}}{{^isString}}{{^isUuid}}{{^isPrimitiveType}}{{^isContainer}}::models::{{/isContainer}}{{/isPrimitiveType}}{{{dataType}}}{{/isUuid}}{{/isString}}{{#hasMore}}, {{/hasMore}}{{/allParams}}) -> Box<Future<Item = {{^returnType}}(){{/returnType}}{{#returnType}}{{{.}}}{{/returnType}}, Error = Error<serde_json::Value>>> {
