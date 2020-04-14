@@ -1,28 +1,25 @@
 {{>partial_header}}
 {{#models}}
 {{#model}}
+#![allow(unused_imports)]
 {{#description}}
 /// {{{classname}}} : {{{description}}}
 {{/description}}
 
-#[allow(unused_imports)]
 use serde_json::Value;
+//use serde::{Serializer, Serialize, Deserializer, Deserialize};
+use bigdecimal::BigDecimal;
 
 #[derive(Debug, Serialize, Deserialize)]
+{{^isEnum}}
 pub struct {{classname}} {
 {{#vars}}
-  {{#description}}
-  /// {{{description}}}
-  {{/description}}
   #[serde(rename = "{{baseName}}")]
   {{name}}: {{^required}}Option<{{/required}}{{{datatype}}}{{^required}}>{{/required}}{{#hasMore}},{{/hasMore}}
 {{/vars}}
 }
 
 impl {{classname}} {
-  {{#description}}
-  /// {{{description}}}
-  {{/description}}
   pub fn new({{#requiredVars}}{{name}}: {{{datatype}}}, {{/requiredVars}}) -> {{classname}} {
     {{classname}} {
       {{#vars}}
@@ -53,17 +50,16 @@ impl {{classname}} {
 
   {{/vars}}
 }
-
+{{/isEnum}}
 {{#isEnum}}
-// TODO enum 
-// List of {{{name}}}
-//const (
-//  {{#allowableValues}}
-//  {{#enumVars}}
-//  {{name}} {{{classname}}} = "{{{value}}}"
-//  {{/enumVars}}
-//  {{/allowableValues}}
-//)
+pub enum {{name}} {
+  {{#allowableValues}}
+  {{#enumVars}}
+  #[serde(alias = "{{{value}}}")]
+  {{name}},
+  {{/enumVars}}
+  {{/allowableValues}}
+}
 {{/isEnum}}
 
 

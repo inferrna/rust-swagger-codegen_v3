@@ -172,6 +172,7 @@ public class RustGenerator extends DefaultCodegenConfig {
     typeMapping.put("float", "f32");
     typeMapping.put("double", "f64");
     typeMapping.put("boolean", "bool");
+    typeMapping.put("String", "String");
     typeMapping.put("string", "String");
     typeMapping.put("UUID", "String");
     typeMapping.put("date", "string");
@@ -200,6 +201,73 @@ public class RustGenerator extends DefaultCodegenConfig {
   @Override
   public String escapeReservedWord(String name) {
     return "_" + name;  // add an underscore to the name
+  }
+
+  public Map<String, String> createMapping(String key, String value) {
+    Map<String, String> customImport = new HashMap();
+    customImport.put(key, value);
+    return customImport;
+  }
+
+  @Override
+  public Map<String, Object> postProcessModels(Map<String, Object> objs) {
+    List<Map<String, String>> imports = (List)objs.get("imports");
+    String prefix = this.modelPackage();
+    Iterator iterator = imports.iterator();
+
+    while(iterator.hasNext()) {
+      String _import = (String)((Map)iterator.next()).get("import");
+      if (_import.startsWith(prefix)) {
+        iterator.remove();
+      }
+    }
+
+    boolean addedTimeImport = false;
+    boolean addedOSImport = false;
+    List<Map<String, Object>> models = (List)objs.get("models");
+    Iterator var8 = models.iterator();
+
+    while(true) {
+      Object v;
+      do {
+        if (!var8.hasNext()) {
+          List<Map<String, String>> recursiveImports = (List)objs.get("imports");
+          if (recursiveImports == null) {
+            return objs;
+          }
+
+          ListIterator listIterator = imports.listIterator();
+
+          while(listIterator.hasNext()) {
+            String _import = (String)((Map)listIterator.next()).get("import");
+            if (this.importMapping.containsKey(_import)) {
+              listIterator.add(this.createMapping("import", (String)this.importMapping.get(_import)));
+            }
+          }
+
+          return this.postProcessModelsEnum(objs);
+        }
+
+        Map<String, Object> m = (Map)var8.next();
+        v = m.get("model");
+      } while(!(v instanceof CodegenModel));
+
+      CodegenModel model = (CodegenModel)v;
+      Iterator var12 = model.vars.iterator();
+
+      while(var12.hasNext()) {
+        CodegenProperty param = (CodegenProperty)var12.next();
+        if (!addedTimeImport && param.baseType == "time.Time") {
+          imports.add(this.createMapping("import", "time"));
+          addedTimeImport = true;
+        }
+
+        if (!addedOSImport && param.baseType == "*os.File") {
+          imports.add(this.createMapping("import", "os"));
+          addedOSImport = true;
+        }
+      }
+    }
   }
 
   /**
@@ -347,7 +415,7 @@ public class RustGenerator extends DefaultCodegenConfig {
       } else if (this.typeMapping.containsValue(schemaType)) {
         return schemaType;
       } else {
-        return this.languageSpecificPrimitives.contains(schemaType) ? schemaType : "::models::" + this.toModelName(schemaType);
+        return this.languageSpecificPrimitives.contains(schemaType) ? schemaType : "crate::models::" + this.toModelName(schemaType);
       }
     }
   }
@@ -365,6 +433,7 @@ public class RustGenerator extends DefaultCodegenConfig {
     return underscore(sanitizedOperationId);
   }
 
+
   @Override
   public Map<String, Object> postProcessOperations(Map<String, Object> objs) {
     @SuppressWarnings("unchecked")
@@ -373,7 +442,7 @@ public class RustGenerator extends DefaultCodegenConfig {
     List<CodegenOperation> operations = (List<CodegenOperation>) objectMap.get("operation");
     for (CodegenOperation operation : operations) {
       // http method verb conversion (e.g. PUT => Put)
-      operation.httpMethod = camelize(operation.httpMethod.toLowerCase());
+      operation.httpMethod = camelize(operation.httpMethod.toUpperCase());
     }
 
     return objs;

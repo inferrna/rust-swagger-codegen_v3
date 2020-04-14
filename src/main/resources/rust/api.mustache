@@ -1,4 +1,5 @@
 {{>partial_header}}
+#![allow(unused_imports)]
 use std::rc::Rc;
 use std::borrow::Borrow;
 use std::borrow::Cow;
@@ -6,18 +7,22 @@ use std::collections::HashMap;
 
 use hyper;
 use serde_json;
+use tokio::runtime::Runtime;
 use futures;
 use futures::{Future, Stream};
+use bigdecimal::BigDecimal;
 
-use hyper::header::UserAgent;
+use hyper::Body;
+use hyper::body::HttpBody;
+use std::str::FromStr;
 
 use super::{Error, configuration};
 
-pub struct {{{classname}}}Client<C: hyper::client::connect::Connect> {
+pub struct {{{classname}}}Client<C: hyper::client::connect::Connect + Clone + Send + Sync> {
     configuration: Rc<configuration::Configuration<C>>,
 }
 
-impl<C: hyper::client::connect::Connect> {{{classname}}}Client<C> {
+impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static> {{{classname}}}Client<C> {
     pub fn new(configuration: Rc<configuration::Configuration<C>>) -> {{{classname}}}Client<C> {
         {{{classname}}}Client {
             configuration: configuration,
@@ -28,16 +33,16 @@ impl<C: hyper::client::connect::Connect> {{{classname}}}Client<C> {
 pub trait {{classname}} {
 {{#operations}}
 {{#operation}}
-    fn {{{operationId}}}(&self, {{#allParams}}{{paramName}}: {{#isString}}&str{{/isString}}{{#isUuid}}&str{{/isUuid}}{{^isString}}{{^isUuid}}{{^isPrimitiveType}}{{^isContainer}}::models::{{/isContainer}}{{/isPrimitiveType}}{{{dataType}}}{{/isUuid}}{{/isString}}{{#hasMore}}, {{/hasMore}}{{/allParams}}) -> Box<Future<Item = {{^returnType}}(){{/returnType}}{{#returnType}}{{{returnType}}}{{/returnType}}, Error = Error<serde_json::Value>>>;
+    fn {{{operationId}}}(&self, {{#allParams}}{{paramName}}: {{#isString}}&str{{/isString}}{{#isUuid}}&str{{/isUuid}}{{^isString}}{{^isUuid}}{{^isPrimitiveType}}{{^isContainer}}crate::models::{{/isContainer}}{{/isPrimitiveType}}{{{dataType}}}{{/isUuid}}{{/isString}}{{#hasMore}}, {{/hasMore}}{{/allParams}}) -> Box<Result<{{^returnType}}(){{/returnType}}{{#returnType}}{{{returnType}}}{{/returnType}}, Error<serde_json::Value>>>;
 {{/operation}}
 {{/operations}}
 }
 
 
-impl<C: hyper::client::connect::Connect>{{classname}} for {{classname}}Client<C> {
+impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static>{{classname}} for {{classname}}Client<C> {
 {{#operations}}
 {{#operation}}
-    fn {{{operationId}}}(&self, {{#allParams}}{{paramName}}: {{#isString}}&str{{/isString}}{{#isUuid}}&str{{/isUuid}}{{^isString}}{{^isUuid}}{{^isPrimitiveType}}{{^isContainer}}::models::{{/isContainer}}{{/isPrimitiveType}}{{{dataType}}}{{/isUuid}}{{/isString}}{{#hasMore}}, {{/hasMore}}{{/allParams}}) -> Box<Future<Item = {{^returnType}}(){{/returnType}}{{#returnType}}{{{.}}}{{/returnType}}, Error = Error<serde_json::Value>>> {
+    fn {{{operationId}}}(&self, {{#allParams}}{{paramName}}: {{#isString}}&str{{/isString}}{{#isUuid}}&str{{/isUuid}}{{^isString}}{{^isUuid}}{{^isPrimitiveType}}{{^isContainer}}crate::models::{{/isContainer}}{{/isPrimitiveType}}{{{dataType}}}{{/isUuid}}{{/isString}}{{#hasMore}}, {{/hasMore}}{{/allParams}}) -> Box<Result<{{^returnType}}(){{/returnType}}{{#returnType}}{{{returnType}}}{{/returnType}}, Error<serde_json::Value>>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
 {{#hasAuthMethods}}
@@ -104,63 +109,77 @@ impl<C: hyper::client::connect::Connect>{{classname}} for {{classname}}Client<C>
         // }
         let mut uri: hyper::Uri = uri_str.parse().unwrap();
 
-        let mut req = hyper::Request::new(method, uri);
+        let mut req = hyper::Request::builder()
+            .method(method)
+            .uri(uri);
 
+        let mut headers = req.headers_mut().unwrap();
         if let Some(ref user_agent) = configuration.user_agent {
-            req.headers_mut().set(UserAgent::new(Cow::Owned(user_agent.clone())));
+            headers.insert(hyper::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         {{#hasHeaderParams}}
         {
-            let mut headers = req.headers_mut();
             {{#headerParams}}
-            headers.set_raw("{{baseName}}", {{paramName}}{{#isListContainer}}.join(",").as_ref(){{/isListContainer}});
+            headers.insert("{{baseName}}", {{paramName}}{{#isListContainer}}.join(",").as_ref(){{/isListContainer}});
             {{/headerParams}}
         }
         {{/hasHeaderParams}}
 
         {{#hasAuthMethods}}
         for (key, val) in auth_headers {
-            req.headers_mut().set_raw(key, val);
+            headers.insert(hyper::header::HeaderName::from_str(key.as_ref()).unwrap(), val.parse().unwrap());
         }
         {{/hasAuthMethods}}
 
+        let somebody = Body::empty();
         {{#hasBodyParam}}
         {{#bodyParams}}
         let serialized = serde_json::to_string(&{{paramName}}).unwrap();
-        req.headers_mut().set(hyper::header::ContentType::json());
-        req.headers_mut().set(hyper::header::ContentLength(serialized.len() as u64));
-        req.set_body(serialized);
+        headers.insert(hyper::header::CONTENT_TYPE, "application/json".parse().unwrap());
+        headers.insert(hyper::header::CONTENT_LENGTH, format!("{}", serialized.len()).parse().unwrap());
+        let somebody = Body::from(serialized);
         {{/bodyParams}}
         {{/hasBodyParam}}
 
+        let req = req.body(somebody).unwrap();
+
+        let mut r = Runtime::new().unwrap();
         // send request
-        Box::new(
-        configuration.client.request(req)
-            .map_err(|e| Error::from(e))
-            .and_then(|resp| {
+        let ass = async {
+            let empty_bd = Body::empty().data().await.unwrap().unwrap();
+            let a = configuration.client.request(req)
+                                 .await
+                                 .map_err(|e| -> Error<serde_json::Value> { Error::from(e) });
+            let a = a.and_then(|resp| {
                 let status = resp.status();
-                resp.body().concat2()
-                    .and_then(move |body| Ok((status, body)))
-                    .map_err(|e| Error::from(e))
-            })
-            .and_then(|(status, body)| {
+                let body = resp.body().data();
                 if status.is_success() {
                     Ok(body)
                 } else {
-                    Err(Error::from((status, &*body)))
+                    Err(Error::from((status, empty_bd.borrow())))
                 }
-            })
+            });
             {{^returnType}}
-            .and_then(|_| futures::future::ok(()))
+            Result::ok(()))
             {{/returnType}}
+
             {{#returnType}}
-            .and_then(|body| {
-                let parsed: Result<{{{returnType}}}, _> = serde_json::from_slice(&body);
-                parsed.map_err(|e| Error::from(e))
-            })
+            let a = a
+                .map_err(|e| -> Error<serde_json::Value> { Error::from(e) })
+                .unwrap();
+            let a = a.await.unwrap();
+            let a = a.map_err(|e| -> Error<serde_json::Value> { Error::from(e) })
+                     .and_then(|body| {
+                         let res = serde_json::from_slice(body.borrow());
+                         res.map_err(|e| -> Error<serde_json::Value> { Error::from(e) })
+                     });
+            a
             {{/returnType}}
-        )
+        };
+        let a = r.block_on(ass);
+        Box::new(a)
+
     }
 
 {{/operation}}

@@ -3,7 +3,7 @@ use std::rc::Rc;
 use hyper;
 use super::configuration::Configuration;
 
-pub struct APIClient<C: hyper::client::connect::Connect> {
+pub struct APIClient<C: hyper::client::connect::Connect + Clone + Send + Sync> {
   configuration: Rc<Configuration<C>>,
 {{#apiInfo}}
 {{#apis}}
@@ -14,7 +14,7 @@ pub struct APIClient<C: hyper::client::connect::Connect> {
 {{/apiInfo}}
 }
 
-impl<C: hyper::client::connect::Connect> APIClient<C> {
+impl<C: hyper::client::connect::Connect + Clone + Send + Sync> APIClient<C> {
   pub fn new(configuration: Configuration<C>) -> APIClient<C> {
     let rc = Rc::new(configuration);
 
