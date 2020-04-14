@@ -2,14 +2,13 @@ package com.rust.codegen;
 
 import io.swagger.codegen.v3.*;
 import io.swagger.codegen.v3.generators.DefaultCodegenConfig;
+import io.swagger.codegen.v3.generators.handlebars.ExtensionHelper;
 import io.swagger.codegen.v3.generators.util.OpenAPIUtil;
+import io.swagger.v3.oas.models.media.*;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.swagger.v3.oas.models.media.ArraySchema;
-import io.swagger.v3.oas.models.media.MapSchema;
-import io.swagger.v3.oas.models.media.Schema;
 import java.util.*;
 import java.io.File;
 
@@ -160,7 +159,7 @@ public class RustGenerator extends DefaultCodegenConfig {
                     "i8", "i16", "i32", "i64",
                     "u8", "u16", "u32", "u64",
                     "f32", "f64",
-                    "char", "bool", "String", "Vec<u8>", "File", "BigDecimal")
+                    "char", "bool", "Vec<u8>", "File", "BigDecimal")
     );
 
     instantiationTypes.clear();
@@ -172,7 +171,6 @@ public class RustGenerator extends DefaultCodegenConfig {
     typeMapping.put("float", "f32");
     typeMapping.put("double", "f64");
     typeMapping.put("boolean", "bool");
-    typeMapping.put("String", "String");
     typeMapping.put("string", "String");
     typeMapping.put("UUID", "String");
     typeMapping.put("date", "string");
@@ -207,6 +205,24 @@ public class RustGenerator extends DefaultCodegenConfig {
     Map<String, String> customImport = new HashMap();
     customImport.put(key, value);
     return customImport;
+  }
+
+  private String findEnumName(int truncateIdx, Object value) {
+    if (value == null) {
+      return "null";
+    } else {
+      String enumName;
+      if (truncateIdx == 0) {
+        enumName = value.toString();
+      } else {
+        enumName = value.toString().substring(truncateIdx);
+        if ("".equals(enumName)) {
+          enumName = value.toString();
+        }
+      }
+
+      return enumName;
+    }
   }
 
   @Override
@@ -399,23 +415,36 @@ public class RustGenerator extends DefaultCodegenConfig {
   @Override
   public String getTypeDeclaration(Schema schema) {
     Schema inner;
+    String schemaType = this.getSchemaType(schema);
     if (schema instanceof ArraySchema) {
       ArraySchema arraySchema = (ArraySchema)schema;
       inner = arraySchema.getItems();
       return "Vec<" + this.getTypeDeclaration(inner) + ">";
-    }
-    else if (schema instanceof MapSchema) {
+    } else if (schema instanceof MapSchema) {
       MapSchema mapSchema = (MapSchema)schema;
       inner = (Schema)mapSchema.getAdditionalProperties();
       return "::std::collections::HashMap<String, " + this.getTypeDeclaration(inner) + ">";
+    } else if (schema instanceof StringSchema) {
+      return "String";
+    } else if (schema instanceof NumberSchema) {
+      return "f32";
+    } else if (schema instanceof IntegerSchema) {
+      return "i64";
+    } else if (schema instanceof BooleanSchema) {
+      return "bool";
+    } else if (schema instanceof DateTimeSchema) {
+      return "DateTime";
     } else {
-      String schemaType = this.getSchemaType(schema);
       if (this.typeMapping.containsKey(schemaType)) {
-        return (String)this.typeMapping.get(schemaType);
+        return "crate::enumsa::"+(String)this.typeMapping.get(schemaType);
+      } else if (schema.get$ref() != null) {
+        String[] refh = schema.get$ref().split("/");
+        return String.format("crate::models::%s", this.toModelName(refh[refh.length-1]));
       } else if (this.typeMapping.containsValue(schemaType)) {
         return schemaType;
       } else {
-        return this.languageSpecificPrimitives.contains(schemaType) ? schemaType : "crate::models::" + this.toModelName(schemaType);
+        return this.languageSpecificPrimitives.contains(schemaType) ? "crate::models::"+schemaType
+                : "crate::models::" + this.toModelName(schemaType);
       }
     }
   }
