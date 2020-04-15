@@ -53,9 +53,9 @@ use super::models::*;
 {{#apiInfo}}
 {{#apis}}
 mod {{classFilename}};
-{{#operations.[0]}}
+{{#operations}}
 pub use self::{{classFilename}}::{ {{classname}}, {{classname}}Client };
-{{/operations.[0]}}
+{{/operations}}
 {{/apis}}
 {{/apiInfo}}
 

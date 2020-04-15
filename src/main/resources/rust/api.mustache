@@ -13,6 +13,7 @@ use futures::{Future, Stream};
 use bigdecimal::BigDecimal;
 
 use hyper::Body;
+use hyper::body::Bytes;
 use hyper::body::HttpBody;
 use std::str::FromStr;
 use chrono::{NaiveDateTime, DateTime, FixedOffset};
@@ -48,7 +49,7 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static>{{classn
 
 {{#hasAuthMethods}}
         let mut auth_headers = HashMap::<String, String>::new();
-        let mut auth_query = HashMap::<String, String>::new();
+        let auth_query = HashMap::<String, String>::new();
 {{#authMethods}}
 {{#isApiKey}}
         if let Some(ref apikey) = configuration.api_key {
@@ -78,14 +79,14 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static>{{classn
 {{/isBasic}}
 {{#isOAuth}}
         if let Some(ref token) = configuration.oauth_access_token {
-            let auth = hyper::header::Authorization(
-                hyper::header::Bearer {
-                    token: token.to_owned(),
-                }
-            );
-            auth_headers.insert("Authorization".to_owned(), auth.to_string());
-        };
+            auth_headers.insert("Authorization".to_owned(), format!("Bearer {}", token));
+        }
 {{/isOAuth}}
+{{#isBearer}}
+        if let Some(ref token) = configuration.oauth_access_token {
+            auth_headers.insert("Authorization".to_owned(), format!("Bearer {}", token));
+        }
+{{/isBearer}}
 {{/authMethods}}
 {{/hasAuthMethods}}
         let method = hyper::Method::{{httpMethod}};
@@ -108,13 +109,14 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static>{{classn
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut uri: hyper::Uri = uri_str.parse().unwrap();
+        dbg!(&uri_str);
+        let uri: hyper::Uri = uri_str.parse().unwrap();
 
         let mut req = hyper::Request::builder()
             .method(method)
             .uri(uri);
 
-        let mut headers = req.headers_mut().unwrap();
+        let headers = req.headers_mut().unwrap();
         if let Some(ref user_agent) = configuration.user_agent {
             headers.insert(hyper::header::USER_AGENT, user_agent.parse().unwrap());
         }
@@ -148,31 +150,29 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static>{{classn
         let mut r = Runtime::new().unwrap();
         // send request
         let ass = async {
-            let empty_bd = Body::empty().data().await.unwrap().unwrap();
             let a = configuration.client.request(req)
                                  .await
                                  .map_err(|e| -> Error<serde_json::Value> { Error::from(e) });
-            let a = a.and_then(|resp| {
-                let status = resp.status();
-                if status.is_success() {
-                    Ok(resp)
-                } else {
-                    Err(Error::from((status, empty_bd.borrow())))
-                }
-            });
+
+            let mut a = a?;
+
+            let status = a.status();
+            let bd = a.body_mut().data().await.unwrap_or(Ok(Bytes::new())).unwrap_or(Bytes::new());
+
+            let a = if status.is_success() {
+                        Ok(bd)
+                    } else {
+                        Err(Error::from((status, bd.borrow())))
+                    };
+
+            let mut a = a?;
             {{^returnType}}
             Result::ok(()))
             {{/returnType}}
 
             {{#returnType}}
-            let mut a = a?;
-            let a = a.body_mut().data();
-            let a = a.await.unwrap();
-            let a = a.map_err(|e| -> Error<serde_json::Value> { Error::from(e) })
-                     .and_then(|body| {
-                         let res = serde_json::from_slice(body.borrow());
-                         res.map_err(|e| -> Error<serde_json::Value> { Error::from(e) })
-                     });
+            let a = serde_json::from_slice(a.borrow())
+                .map_err(|e| -> Error<serde_json::Value> { Error::from(e) });
             a
             {{/returnType}}
         };
