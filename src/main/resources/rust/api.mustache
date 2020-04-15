@@ -154,9 +154,8 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static>{{classn
                                  .map_err(|e| -> Error<serde_json::Value> { Error::from(e) });
             let a = a.and_then(|resp| {
                 let status = resp.status();
-                let body = resp.body().data();
                 if status.is_success() {
-                    Ok(body)
+                    Ok(resp)
                 } else {
                     Err(Error::from((status, empty_bd.borrow())))
                 }
@@ -166,9 +165,8 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static>{{classn
             {{/returnType}}
 
             {{#returnType}}
-            let a = a
-                .map_err(|e| -> Error<serde_json::Value> { Error::from(e) })
-                .unwrap();
+            let mut a = a?;
+            let a = a.body_mut().data();
             let a = a.await.unwrap();
             let a = a.map_err(|e| -> Error<serde_json::Value> { Error::from(e) })
                      .and_then(|body| {
