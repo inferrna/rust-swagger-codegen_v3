@@ -19,6 +19,8 @@ use std::str::FromStr;
 use chrono::{NaiveDateTime, DateTime, FixedOffset};
 use crate::models::*;
 use super::{Error, configuration};
+use headers::{Authorization, Header};
+use headers::authorization::Credentials;
 
 pub struct {{{classname}}}Client<C: hyper::client::connect::Connect + Clone + Send + Sync> {
     configuration: Rc<configuration::Configuration<C>>,
@@ -68,13 +70,8 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static>{{classn
 {{/isApiKey}}
 {{#isBasic}}
         if let Some(ref auth_conf) = configuration.basic_auth {
-            let auth = hyper::header::Authorization(
-                hyper::header::Basic {
-                    username: auth_conf.0.to_owned(),
-                    password: auth_conf.1.to_owned(),
-                }
-            );
-            auth_headers.insert("Authorization".to_owned(), auth.to_string());
+            let basic = Authorization::basic(auth_conf.0, auth_conf.1);
+            auth_headers.insert("Authorization".to_owned(), basic.to_string());
         };
 {{/isBasic}}
 {{#isOAuth}}
