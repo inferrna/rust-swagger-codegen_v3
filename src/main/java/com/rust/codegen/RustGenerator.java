@@ -142,6 +142,8 @@ public class RustGenerator extends DefaultCodegenConfig {
     supportingFiles.add(new SupportingFile("api_mod.mustache", apiFolder, "mod.rs"));
     supportingFiles.add(new SupportingFile("model_mod.mustache", modelFolder, "mod.rs"));
     supportingFiles.add(new SupportingFile("lib.rs", "src", "lib.rs"));
+    supportingFiles.add(new SupportingFile("date_serializer.rs", "src", "date_serializer.rs"));
+    supportingFiles.add(new SupportingFile("datetime_serializer.rs", "src", "datetime_serializer.rs"));
     supportingFiles.add(new SupportingFile("Cargo.mustache", "", "Cargo.toml"));
 
     defaultIncludes = new HashSet<String>(
@@ -227,64 +229,50 @@ public class RustGenerator extends DefaultCodegenConfig {
 
   @Override
   public Map<String, Object> postProcessModels(Map<String, Object> objs) {
-    List<Map<String, String>> imports = (List)objs.get("imports");
-    String prefix = this.modelPackage();
-    Iterator iterator = imports.iterator();
-
-    while(iterator.hasNext()) {
-      String _import = (String)((Map)iterator.next()).get("import");
-      if (_import.startsWith(prefix)) {
+    // remove model imports to avoid error
+    List<Map<String, String>> imports = (List<Map<String, String>>) objs.get("imports");
+    final String prefix = modelPackage();
+    Iterator<Map<String, String>> iterator = imports.iterator();
+    while (iterator.hasNext()) {
+      String _import = iterator.next().get("import");
+      if (_import.startsWith(prefix))
         iterator.remove();
-      }
     }
 
     boolean addedTimeImport = false;
-    boolean addedOSImport = false;
-    List<Map<String, Object>> models = (List)objs.get("models");
-    Iterator var8 = models.iterator();
-
-    while(true) {
-      Object v;
-      do {
-        if (!var8.hasNext()) {
-          List<Map<String, String>> recursiveImports = (List)objs.get("imports");
-          if (recursiveImports == null) {
-            return objs;
+    List<Map<String, Object>> models = (List<Map<String, Object>>) objs.get("models");
+    for (Map<String, Object> m : models) {
+      Object v = m.get("model");
+      if (v instanceof CodegenModel) {
+        CodegenModel model = (CodegenModel) v;
+        for (CodegenProperty param : model.vars) {
+          if (!addedTimeImport && param.baseType.equals("DateTime")) {
+            imports.add(createMapping("use", "chrono::{NaiveDateTime, DateTime, Utc, Local, TimeZone}"));
+            addedTimeImport = true;
+          } else {
+            imports.add(createMapping("use", param.baseType));
           }
-
-          ListIterator listIterator = imports.listIterator();
-
-          while(listIterator.hasNext()) {
-            String _import = (String)((Map)listIterator.next()).get("import");
-            if (this.importMapping.containsKey(_import)) {
-              listIterator.add(this.createMapping("import", (String)this.importMapping.get(_import)));
-            }
-          }
-
-          return this.postProcessModelsEnum(objs);
-        }
-
-        Map<String, Object> m = (Map)var8.next();
-        v = m.get("model");
-      } while(!(v instanceof CodegenModel));
-
-      CodegenModel model = (CodegenModel)v;
-      Iterator var12 = model.vars.iterator();
-
-      while(var12.hasNext()) {
-        CodegenProperty param = (CodegenProperty)var12.next();
-        if (!addedTimeImport && param.baseType == "time.Time") {
-          imports.add(this.createMapping("import", "time"));
-          addedTimeImport = true;
-        }
-
-        if (!addedOSImport && param.baseType == "*os.File") {
-          imports.add(this.createMapping("import", "os"));
-          addedOSImport = true;
         }
       }
     }
+    // recursively add import for mapping one type to multiple imports
+    List<Map<String, String>> recursiveImports = (List<Map<String, String>>) objs.get("imports");
+    if (recursiveImports == null)
+      return objs;
+
+    ListIterator<Map<String, String>> listIterator = imports.listIterator();
+    while (listIterator.hasNext()) {
+      String _import = listIterator.next().get("import");
+      // if the import package happens to be found in the importMapping (key)
+      // add the corresponding import package to the list
+      if (importMapping.containsKey(_import)) {
+        listIterator.add(createMapping("import", importMapping.get(_import)));
+      }
+    }
+
+    return postProcessModelsEnum(objs);
   }
+
 
   /**
    * Location to write model files.  You can use the modelPackage() as defined when the class is
@@ -433,18 +421,19 @@ public class RustGenerator extends DefaultCodegenConfig {
     } else if (schema instanceof BooleanSchema) {
       return "bool";
     } else if (schema instanceof DateTimeSchema) {
-      return "DateTime";
+      schema.setFormat("datetime");
+      return "DateTime<FixedOffset>";
     } else {
       if (this.typeMapping.containsKey(schemaType)) {
-        return "crate::enumsa::"+(String)this.typeMapping.get(schemaType);
+        return (String)this.typeMapping.get(schemaType);
       } else if (schema.get$ref() != null) {
         String[] refh = schema.get$ref().split("/");
-        return String.format("crate::models::%s", this.toModelName(refh[refh.length-1]));
+        return String.format("%s", this.toModelName(refh[refh.length-1]));
       } else if (this.typeMapping.containsValue(schemaType)) {
         return schemaType;
       } else {
-        return this.languageSpecificPrimitives.contains(schemaType) ? "crate::models::"+schemaType
-                : "crate::models::" + this.toModelName(schemaType);
+        return this.languageSpecificPrimitives.contains(schemaType) ? ""+schemaType
+                : "" + this.toModelName(schemaType);
       }
     }
   }
@@ -475,6 +464,14 @@ public class RustGenerator extends DefaultCodegenConfig {
     }
 
     return objs;
+  }
+  @Override
+  public void postProcessParameter(CodegenParameter parameter) {
+    super.postProcessParameter(parameter);
+    if(parameter.getDataType().equals("DateTime")) {
+      parameter.dataFormat = "datetime";
+      if(parameter.example == null) parameter.example = "2019-08-19T18:38:33.131642+03:00";
+    }
   }
 
   @Override
