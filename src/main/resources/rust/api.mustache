@@ -91,7 +91,7 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static>{{classn
         let query_string = {
             let mut query = ::url::form_urlencoded::Serializer::new(String::new());
 {{#queryParams}}
-            query.append_pair("{{baseName}}", &serde_json::to_string( &{{paramName}}{{#isListContainer}}.join(","){{/isListContainer}} ).unwrap());
+            query.append_pair("{{baseName}}", &serde_json::to_string( &{{paramName}}{{#isListContainer}}{{/isListContainer}} ).unwrap());
 {{/queryParams}}
 {{#hasAuthMethods}}
             for (key, val) in &auth_query {
@@ -154,12 +154,17 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static>{{classn
             let mut a = a?;
 
             let status = a.status();
-            let bd = a.body_mut().data().await.unwrap_or(Ok(Bytes::new())).unwrap_or(Bytes::new());
+            let mut resbd: Vec<u8> = vec![];
+
+            while let Some(chunk) = a.body_mut().data().await {
+                let mut uppered = chunk.unwrap().to_vec();
+                resbd.append(uppered.as_mut());
+            }
 
             let a = if status.is_success() {
-                        Ok(bd)
+                        Ok(resbd)
                     } else {
-                        Err(Error::from((status, bd.borrow())))
+                        Err(Error::from((status, resbd.borrow())))
                     };
 
             let mut a = a?;
