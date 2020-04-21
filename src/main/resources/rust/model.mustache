@@ -14,7 +14,7 @@ use crate::models::*;
 use crate::date_serializer;
 use crate::datetime_serializer;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 {{^isEnum}}
 pub struct {{classname}} {
 {{#vars}}

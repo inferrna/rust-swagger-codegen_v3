@@ -91,7 +91,12 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static>{{classn
         let query_string = {
             let mut query = ::url::form_urlencoded::Serializer::new(String::new());
 {{#queryParams}}
+        {{#isPrimitiveType}}
+            query.append_pair("{{baseName}}", &format!("{}", &{{paramName}}{{#isListContainer}}{{/isListContainer}} ));
+        {{/isPrimitiveType}}
+        {{^isPrimitiveType}}
             query.append_pair("{{baseName}}", &serde_json::to_string( &{{paramName}}{{#isListContainer}}{{/isListContainer}} ).unwrap());
+        {{/isPrimitiveType}}
 {{/queryParams}}
 {{#hasAuthMethods}}
             for (key, val) in &auth_query {
