@@ -14,8 +14,8 @@ use crate::models::*;
 use crate::date_serializer;
 use crate::datetime_serializer;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
 {{^isEnum}}
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct {{classname}} {
 {{#vars}}
   {{#dataFormat}}
@@ -61,9 +61,11 @@ impl {{classname}} {
 }
 {{/isEnum}}
 {{#isEnum}}
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum {{name}} {
   {{#allowableValues}}
   {{#enumVars}}
+  #[serde(rename(serialize = "{{{value}}}"))]
   #[serde(alias = "{{{value}}}")]
   {{name}},
   {{/enumVars}}
