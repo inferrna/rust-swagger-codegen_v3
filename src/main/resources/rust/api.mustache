@@ -1,6 +1,6 @@
 {{>partial_header}}
 #![allow(unused_imports)]
-use std::rc::Rc;
+use std::sync::Arc;
 use std::borrow::Borrow;
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -23,11 +23,11 @@ use headers::{Authorization, Header};
 use headers::authorization::Credentials;
 
 pub struct {{{classname}}}Client<C: hyper::client::connect::Connect + Clone + Send + Sync> {
-    configuration: Rc<configuration::Configuration<C>>,
+    configuration: Arc<configuration::Configuration<C>>,
 }
 
 impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static> {{{classname}}}Client<C> {
-    pub fn new(configuration: Rc<configuration::Configuration<C>>) -> {{{classname}}}Client<C> {
+    pub fn new(configuration: Arc<configuration::Configuration<C>>) -> {{{classname}}}Client<C> {
         {{{classname}}}Client {
             configuration: configuration,
         }
