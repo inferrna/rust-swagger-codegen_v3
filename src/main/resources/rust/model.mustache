@@ -71,6 +71,11 @@ pub enum {{name}} {
   {{/enumVars}}
   {{/allowableValues}}
 }
+impl ToString for {{name}} {
+  fn to_string(&self) -> String {
+      format!("{:?}", self)
+  }
+}
 {{/isEnum}}
 
 
