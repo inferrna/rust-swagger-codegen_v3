@@ -1,6 +1,6 @@
 //Taken here https://earvinkayonga.com/posts/deserialize-date-in-rust/
 use serde::{de::Error, Serializer, Serialize, Deserializer, Deserialize};
-use chrono::{NaiveDateTime, DateTime, Utc, Local, TimeZone, FixedOffset};
+use chrono::{NaiveDateTime, DateTime, Utc, Local, TimeZone, FixedOffset, SecondsFormat};
 use std::clone::Clone;
 
 
@@ -22,7 +22,7 @@ pub fn serialize<S>(
 where
     S: Serializer,
 {
-    let s = format!("{}", date.to_rfc3339());
+    let s = format!("{}", date.to_rfc3339_opts(SecondsFormat::Secs, true));
     serializer.serialize_str(&s)
 }
 

@@ -16,7 +16,8 @@ use hyper::Body;
 use hyper::body::Bytes;
 use hyper::body::HttpBody;
 use std::str::FromStr;
-use chrono::{NaiveDateTime, DateTime, FixedOffset};
+use chrono::{NaiveDateTime, DateTime, FixedOffset, Utc, SecondsFormat};
+use crate::OutlinePrint;
 use crate::models::*;
 use super::{Error, configuration};
 use headers::{Authorization, Header};
@@ -92,7 +93,7 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static>{{classn
             let mut query = ::url::form_urlencoded::Serializer::new(String::new());
 {{#queryParams}}
         {{#isPrimitiveType}}
-            query.append_pair("{{baseName}}", &format!("{}", &{{paramName}}{{#isListContainer}}{{/isListContainer}} ));
+            query.append_pair("{{baseName}}", &{{paramName}}.outline_print() );
         {{/isPrimitiveType}}
         {{^isPrimitiveType}}
             query.append_pair("{{baseName}}", &serde_json::to_string( &{{paramName}}{{#isListContainer}}{{/isListContainer}} ).unwrap());
@@ -111,7 +112,7 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static>{{classn
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        dbg!(&uri_str);
+        //dbg!(&uri_str);
         let uri: hyper::Uri = uri_str.parse().unwrap();
 
         let mut req = hyper::Request::builder()

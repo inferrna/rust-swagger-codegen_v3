@@ -247,7 +247,7 @@ public class RustGenerator extends DefaultCodegenConfig {
         CodegenModel model = (CodegenModel) v;
         for (CodegenProperty param : model.vars) {
           if (!addedTimeImport && param.baseType.equals("DateTime")) {
-            imports.add(createMapping("use", "chrono::{NaiveDateTime, DateTime, Utc, Local, TimeZone}"));
+            imports.add(createMapping("use", "chrono::{NaiveDateTime, DateTime, Utc, Local, TimeZone, SecondsFormat, Utc}"));
             addedTimeImport = true;
           } else {
             imports.add(createMapping("use", param.baseType));
@@ -422,7 +422,7 @@ public class RustGenerator extends DefaultCodegenConfig {
       return "bool";
     } else if (schema instanceof DateTimeSchema) {
       schema.setFormat("datetime");
-      return "DateTime<FixedOffset>";
+      return "DateTime<Utc>";
     } else {
       if (this.typeMapping.containsKey(schemaType)) {
         return (String)this.typeMapping.get(schemaType);
