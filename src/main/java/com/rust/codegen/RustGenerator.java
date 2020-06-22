@@ -4,6 +4,7 @@ import io.swagger.codegen.v3.*;
 import io.swagger.codegen.v3.generators.DefaultCodegenConfig;
 import io.swagger.codegen.v3.generators.handlebars.ExtensionHelper;
 import io.swagger.codegen.v3.generators.util.OpenAPIUtil;
+import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.media.*;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -70,8 +71,8 @@ public class RustGenerator extends DefaultCodegenConfig {
      * a different extension
      */
     modelTemplateFiles.put(
-      "model.mustache", // the template to use
-      ".rs");       // the extension for each file to write
+            "model.mustache", // the template to use
+            ".rs");       // the extension for each file to write
 
     /**
      * Api classes.  You can write classes for each Api file with the apiTemplateFiles map.
@@ -79,8 +80,8 @@ public class RustGenerator extends DefaultCodegenConfig {
      * class
      */
     apiTemplateFiles.put(
-      "api.mustache",   // the template to use
-      ".rs");       // the extension for each file to write
+            "api.mustache",   // the template to use
+            ".rs");       // the extension for each file to write
 
     modelDocTemplateFiles.put("model_doc.mustache", ".md");
     apiDocTemplateFiles.put("api_doc.mustache", ".md");
@@ -225,6 +226,15 @@ public class RustGenerator extends DefaultCodegenConfig {
 
       return enumName;
     }
+  }
+
+  @SuppressWarnings("static-method")
+  public void addOperationToGroup(String tag, String resourcePath, Operation operation, CodegenOperation co, Map<String, List<CodegenOperation>> operations) {
+    if (co.path.startsWith("/")) {
+      co.path = co.path.substring(1);
+    }
+
+    super.addOperationToGroup(tag, co.path, operation, co, operations);
   }
 
   @Override
