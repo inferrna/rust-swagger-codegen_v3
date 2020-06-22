@@ -432,8 +432,14 @@ public class RustGenerator extends DefaultCodegenConfig {
       } else if (this.typeMapping.containsValue(schemaType)) {
         return schemaType;
       } else {
+        String modelName = this.toModelName(schemaType);
+
+        System.out.println(
+          "WARNING: could not resolve given type (schema type: " + schemaType + ", model name: " + modelName + "). The generated code is probably faulty. Check the schema!"
+        );
+
         return this.languageSpecificPrimitives.contains(schemaType) ? ""+schemaType
-                : "" + this.toModelName(schemaType);
+                : "" + modelName;
       }
     }
   }
