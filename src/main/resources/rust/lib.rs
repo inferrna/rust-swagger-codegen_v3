@@ -36,6 +36,18 @@ impl<'a> OutlinePrint<'a> for i64 {
     }
 }
 
+impl<'a> OutlinePrint<'a> for f32 {
+    fn outline_print(&'a self) -> String {
+        format!("{:?}", self)
+    }
+}
+
+impl<'a> OutlinePrint<'a> for bool {
+    fn outline_print(&'a self) -> String {
+        format!("{:?}", self)
+    }
+}
+
 impl<'a> OutlinePrint<'a> for chrono::DateTime<chrono::Utc> {
     fn outline_print(&'a self) -> String {
         format!("{}", self.to_rfc3339_opts(SecondsFormat::Secs, true))

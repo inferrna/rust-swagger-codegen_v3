@@ -204,7 +204,7 @@ public class RustGenerator extends DefaultCodegenConfig {
   }
 
   public Map<String, String> createMapping(String key, String value) {
-    Map<String, String> customImport = new HashMap();
+    Map<String, String> customImport = new HashMap<>();
     customImport.put(key, value);
     return customImport;
   }

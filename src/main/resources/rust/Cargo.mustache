@@ -1,23 +1,25 @@
 [package]
-name = "{{PACKAGE_NAME}}"
+name = "{{PACKAGE_NAME}}{{^PACKAGE_NAME}}unnamed{{/PACKAGE_NAME}}"
 version = "0.2.0"
 authors = ["Swagger Codegen team and contributors"]
 edition = "2018"
 
 [dependencies]
-serde = "1.0"
-serde_derive = "1.0"
-serde_yaml = "0.7"
-serde_json = "1.0"
-base64 = "~0.7.0"
-futures = "*"
-hyper = "0.13.4"
-url = "2.1.1"
-headers = "*"
-tokio = { version = "0.2", features = ["full"] }
-bigdecimal = { version = "*", features = ["serde"] }
-chrono = { version = "*", features = ["serde"] }
+serde = "^1.0.113"
+serde_derive = "^1.0.113"
+serde_yaml = "^0.8.13"
+serde_json = "^1.0.55"
+base64 = "^0.12.2"
+futures = "^0.3.5"
+hyper = "^0.13.6"
+url = "^2.1.1"
+headers = "^0.3.2"
+tokio = { version = "^0.2.21", features = ["full"] }
+bigdecimal = { version = "^0.1.2", features = ["serde"] }
+chrono = { version = "^0.4.11", features = ["serde"] }
+async-trait = "^0.1.36"
 
 [dev-dependencies]
-tokio-core = "*"
-tokio = { version = "*", features = ["full"] }
+tokio-core = "^0.1.17"
+tokio = { version = "^0.2.21", features = ["full"] }
+

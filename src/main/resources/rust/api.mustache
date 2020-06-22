@@ -35,24 +35,25 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static> {{{clas
     }
 }
 
+#[async_trait::async_trait]
 pub trait {{classname}} {
 {{#operations}}
 {{#operation}}
-    fn {{{operationId}}}(&self, {{#allParams}}{{paramName}}: {{#isString}}&str{{/isString}}{{#isUuid}}&str{{/isUuid}}{{^isString}}{{^isUuid}}{{^isPrimitiveType}}{{^isContainer}}crate::models::{{/isContainer}}{{/isPrimitiveType}}{{{dataType}}}{{/isUuid}}{{/isString}}{{#hasMore}}, {{/hasMore}}{{/allParams}}) -> Box<Result<{{^returnType}}(){{/returnType}}{{#returnType}}{{{returnType}}}{{/returnType}}, Error<serde_json::Value>>>;
+    async fn {{{operationId}}}(&self, {{#allParams}}{{paramName}}: {{#isString}}&str{{/isString}}{{#isUuid}}&str{{/isUuid}}{{^isString}}{{^isUuid}}{{^isPrimitiveType}}{{^isContainer}}crate::models::{{/isContainer}}{{/isPrimitiveType}}{{{dataType}}}{{/isUuid}}{{/isString}}{{#hasMore}}, {{/hasMore}}{{/allParams}}) -> Result<{{^returnType}}(){{/returnType}}{{#returnType}}{{{returnType}}}{{/returnType}}, Error<serde_json::Value>>;
 {{/operation}}
 {{/operations}}
 }
 
-
+#[async_trait::async_trait]
 impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static>{{classname}} for {{classname}}Client<C> {
 {{#operations}}
 {{#operation}}
-    fn {{{operationId}}}(&self, {{#allParams}}{{paramName}}: {{#isString}}&str{{/isString}}{{#isUuid}}&str{{/isUuid}}{{^isString}}{{^isUuid}}{{^isPrimitiveType}}{{^isContainer}}crate::models::{{/isContainer}}{{/isPrimitiveType}}{{{dataType}}}{{/isUuid}}{{/isString}}{{#hasMore}}, {{/hasMore}}{{/allParams}}) -> Box<Result<{{^returnType}}(){{/returnType}}{{#returnType}}{{{returnType}}}{{/returnType}}, Error<serde_json::Value>>> {
+    async fn {{{operationId}}}(&self, {{#allParams}}{{paramName}}: {{#isString}}&str{{/isString}}{{#isUuid}}&str{{/isUuid}}{{^isString}}{{^isUuid}}{{^isPrimitiveType}}{{^isContainer}}crate::models::{{/isContainer}}{{/isPrimitiveType}}{{{dataType}}}{{/isUuid}}{{/isString}}{{#hasMore}}, {{/hasMore}}{{/allParams}}) -> Result<{{^returnType}}(){{/returnType}}{{#returnType}}{{{returnType}}}{{/returnType}}, Error<serde_json::Value>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
 {{#hasAuthMethods}}
         let mut auth_headers = HashMap::<String, String>::new();
-        let auth_query = HashMap::<String, String>::new();
+        let mut auth_query = HashMap::<String, String>::new();
 {{#authMethods}}
 {{#isApiKey}}
         if let Some(ref apikey) = configuration.api_key {
@@ -113,13 +114,16 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static>{{classn
         //     return Box::new(futures::future::err(e));
         // }
         //dbg!(&uri_str);
+
         let uri: hyper::Uri = uri_str.parse().unwrap();
 
-        let mut req = hyper::Request::builder()
-            .method(method)
-            .uri(uri);
+        let mut req =
+            hyper::Request::builder()
+                .method(method)
+                .uri(uri);
 
         let headers = req.headers_mut().unwrap();
+
         if let Some(ref user_agent) = configuration.user_agent {
             headers.insert(hyper::header::USER_AGENT, user_agent.parse().unwrap());
         }
@@ -134,7 +138,10 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static>{{classn
 
         {{#hasAuthMethods}}
         for (key, val) in auth_headers {
-            headers.insert(hyper::header::HeaderName::from_str(key.as_ref()).unwrap(), val.parse().unwrap());
+            headers.insert(
+                hyper::header::HeaderName::from_str(key.as_ref()).unwrap(),
+                val.parse().unwrap(),
+            );
         }
         {{/hasAuthMethods}}
 
@@ -150,43 +157,40 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static>{{classn
 
         let req = req.body(somebody).unwrap();
 
-        let mut r = Runtime::new().unwrap();
-        // send request
-        let ass = async {
-            let a = configuration.client.request(req)
-                                 .await
-                                 .map_err(|e| -> Error<serde_json::Value> { Error::from(e) });
+        let res = configuration
+            .client.request(req)
+            .await
+            .map_err(|e| -> Error<serde_json::Value> { Error::from(e) });
 
-            let mut a = a?;
+        let mut res = res?;
 
-            let status = a.status();
-            let mut resbd: Vec<u8> = vec![];
+        let status = res.status();
+        let mut res_body: Vec<u8> = vec![];
 
-            while let Some(chunk) = a.body_mut().data().await {
-                let mut uppered = chunk.unwrap().to_vec();
-                resbd.append(uppered.as_mut());
-            }
+        while let Some(chunk) = res.body_mut().data().await {
+            let mut chunk_vec = chunk.unwrap().to_vec();
+            res_body.append(chunk_vec.as_mut());
+        }
 
-            let a = if status.is_success() {
-                        Ok(resbd)
-                    } else {
-                        Err(Error::from((status, resbd.borrow())))
-                    };
+        let res_body =
+            if status.is_success() {
+                Ok(res_body)
+            } else {
+                Err(Error::from((status, res_body.borrow())))
+            };
 
-            let mut a = a?;
-            {{^returnType}}
-            Result::ok(()))
-            {{/returnType}}
+        let mut res_body = res_body?;
 
-            {{#returnType}}
-            let a = serde_json::from_slice(a.borrow())
-                .map_err(|e| -> Error<serde_json::Value> { Error::from(e) });
-            a
-            {{/returnType}}
-        };
-        let a = r.block_on(ass);
-        Box::new(a)
+        {{^returnType}}
+        Result::ok(()))
+        {{/returnType}}
+        {{#returnType}}
+        let res_body =
+            serde_json::from_slice(res_body.borrow())
+            .map_err(|e| -> Error<serde_json::Value> { Error::from(e) });
 
+        res_body
+        {{/returnType}}
     }
 
 {{/operation}}
