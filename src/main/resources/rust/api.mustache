@@ -97,7 +97,7 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static>{{classn
             query.append_pair("{{baseName}}", &{{paramName}}.outline_print() );
         {{/isPrimitiveType}}
         {{^isPrimitiveType}}
-            query.append_pair("{{baseName}}", &serde_json::to_string( &{{paramName}}{{#isListContainer}}{{/isListContainer}} ).unwrap());
+            query.append_pair("{{baseName}}", &{{paramName}}.to_string());
         {{/isPrimitiveType}}
 {{/queryParams}}
 {{#hasAuthMethods}}

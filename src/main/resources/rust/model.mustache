@@ -72,7 +72,7 @@ pub enum {{name}} {
 }
 impl ToString for {{name}} {
   fn to_string(&self) -> String {
-      format!("{:?}", self)
+      serde_json::to_value(self).unwrap().as_str().unwrap().to_string()
   }
 }
 {{/isEnum}}
