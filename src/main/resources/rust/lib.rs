@@ -17,6 +17,7 @@ pub mod models;
 pub mod date_serializer;
 pub mod datetime_serializer;
 
+//mod tests;  //Put testing data and token to tests before uncomment
 
 pub(crate) trait OutlinePrint<'a>: fmt::Display {
     fn outline_print(&'a self) -> String {

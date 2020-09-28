@@ -1,0 +1,71 @@
+/*
+package {{package}};
+
+import {{invokerPackage}}.ApiException;
+{{#imports}}import {{import}};
+{{/imports}}
+*/
+use crate::models::*;
+use crate::apis::*;
+use crate::apis::configuration::Configuration;
+use hyper::{
+    client::connect::dns::GaiResolver,
+    client::{Client, HttpConnector}
+};
+use std::sync::Arc;
+use serde_json::json;
+
+/**
+ * API tests for {{classname}}
+ */
+
+fn get_token() -> String {
+    "your_token".to_string()
+}
+
+fn get_client() -> {{classname}}Client<HttpConnector<GaiResolver>> {
+    let http = HttpConnector::new();
+    let client = Client::builder().build::<_, hyper::Body>(http);
+    let mut conf = Configuration::new(client);
+    conf.oauth_access_token = Some(get_token()); //Must be provided
+
+    {{classname}}Client::new(Arc::new(conf))
+}
+/*
+{{#examples}}
+    >>examples
+{{/examples}}
+{{#examples}}
+    >>examples
+    {{#example}}
+        >>examples>>example
+    {{/example}}
+{{/examples}}
+{{#example}}
+    >>example
+{{/example}}
+*/
+
+{{#operations}}
+{{#operation}}
+{{#contents}}
+{{#@first}}
+/**
+ * {{summary}}
+ *
+ * {{notes}}
+ *
+ */
+#[tokio::test(core_threads = 3)]
+async fn {{operationId}}Test() {
+    let api_client = get_client();
+    {{#parameters}}
+    let value = json!(/*Put test json here*/);
+    let {{paramName}}: {{{dataType}}} = serde_json::from_value(value).unwrap();
+    {{/parameters}}
+    {{#returnType}}let response: {{{returnType}}} = {{/returnType}}api_client.{{operationId}}({{#parameters}}{{paramName}}{{#has this 'more'}}, {{/has}}{{/parameters}}).await.unwrap();
+}
+{{/@first}}
+{{/contents}}
+{{/operation}}
+{{/operations}}

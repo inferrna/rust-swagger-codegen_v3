@@ -24,6 +24,7 @@ public class RustGenerator extends DefaultCodegenConfig {
   protected String apiDocPath = "docs/";
   protected String modelDocPath = "docs/";
   protected String apiFolder = "src/apis";
+  protected String testsFolder = "src/tests";
   protected String modelFolder= "src/models";
 
   /**
@@ -141,12 +142,15 @@ public class RustGenerator extends DefaultCodegenConfig {
 
     supportingFiles.add(new SupportingFile("client.mustache", apiFolder, "client.rs"));
     supportingFiles.add(new SupportingFile("api_mod.mustache", apiFolder, "mod.rs"));
+    supportingFiles.add(new SupportingFile("api_test_mod.mustache", testsFolder, "mod.rs"));
     supportingFiles.add(new SupportingFile("model_mod.mustache", modelFolder, "mod.rs"));
     supportingFiles.add(new SupportingFile("lib.rs", "src", "lib.rs"));
     supportingFiles.add(new SupportingFile("date_serializer.rs", "src", "date_serializer.rs"));
     supportingFiles.add(new SupportingFile("datetime_serializer.rs", "src", "datetime_serializer.rs"));
     supportingFiles.add(new SupportingFile("Cargo.mustache", "", "Cargo.toml"));
-
+    additionalProperties.put("apiTestPath", "tests");
+    apiTestTemplateFiles.put("api_test.mustache", ".rs");
+    //supportingFiles.add(new SupportingFile("api_test.mustache", "src", "api_test.rs"));
     defaultIncludes = new HashSet<String>(
             Arrays.asList(
                     "map",
@@ -210,6 +214,12 @@ public class RustGenerator extends DefaultCodegenConfig {
     return customImport;
   }
 
+  @Override
+  public String apiTestFileFolder() {
+    return (outputFolder + "/" + testsFolder).replace('/', File.separatorChar);
+  }
+
+
   private String findEnumName(int truncateIdx, Object value) {
     if (value == null) {
       return "null";
@@ -235,6 +245,13 @@ public class RustGenerator extends DefaultCodegenConfig {
     }
 
     super.addOperationToGroup(tag, co.path, operation, co, operations);
+  }
+
+  @Override
+  public Map<String, Object> postProcessAllModels(Map<String, Object> objs) {
+    Map<String, Object> allProcessedModels = super.postProcessAllModels(objs);
+
+    return allProcessedModels;
   }
 
   @Override
@@ -357,6 +374,15 @@ public class RustGenerator extends DefaultCodegenConfig {
     }
 
     return underscore(name);
+  }
+
+  @Override
+  public String toApiTestFilename(String name) {
+    // replace - with _ e.g. created-at => created_at
+    name = name.replaceAll("-", "_"); // FIXME: a parameter should not be assigned. Also declare the methods parameters as 'final'.
+
+    // e.g. PetApi.rs => pet_api.rs
+    return underscore(name) + "_api_test";
   }
 
   @Override
@@ -486,7 +512,7 @@ public class RustGenerator extends DefaultCodegenConfig {
     super.postProcessParameter(parameter);
     if(parameter.getDataType().equals("DateTime")) {
       parameter.dataFormat = "datetime";
-      if(parameter.example == null) parameter.example = "2019-08-19T18:38:33.131642+03:00";
+      if(parameter.example == null) parameter.example = "2019-03-19T18:38:33.131642+03:00";
     }
   }
 
