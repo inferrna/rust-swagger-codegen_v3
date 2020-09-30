@@ -2,7 +2,7 @@
 extern crate serde_derive;
 
 extern crate chrono;
-extern crate hyper;
+pub extern crate hyper;
 extern crate serde;
 extern crate serde_json;
 extern crate futures;
