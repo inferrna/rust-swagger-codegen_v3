@@ -57,7 +57,7 @@ fn get_client() -> {{classname}}Client<HttpConnector<GaiResolver>> {
  *
  */
 #[tokio::test(core_threads = 3)]
-async fn {{operationId}}Test() {
+async fn {{operationId}}_test() {
     let api_client = get_client();
     {{#parameters}}
     let value = json!(/*Put test json here*/);
