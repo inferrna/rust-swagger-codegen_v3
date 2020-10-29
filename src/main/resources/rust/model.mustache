@@ -60,7 +60,7 @@ impl {{classname}} {
 }
 {{/isEnum}}
 {{#isEnum}}
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum {{name}} {
   {{#allowableValues}}
   {{#enumVars}}
