@@ -1,3 +1,4 @@
 target/
+rust-swagger-codegen.iml
 .DS_Store
 .idea
