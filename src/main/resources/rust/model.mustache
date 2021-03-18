@@ -8,10 +8,11 @@
 
 use serde_json::Value;
 use bigdecimal::BigDecimal;
-use chrono::{NaiveDateTime, DateTime, FixedOffset, Utc};
+use chrono::{Date, NaiveDateTime, DateTime, FixedOffset, Utc};
 
 use crate::models::*;
-//use crate::date_serializer;
+use crate::date_serializer;
+use crate::date_serializer_opt;
 //use crate::datetime_serializer;
 
 {{^isEnum}}
@@ -23,6 +24,9 @@ pub struct {{classname}} {
   {{/example}}
   {{/dataFormat}}
   #[serde(rename = "{{{baseName}}}")]
+  {{#isDate}}
+  #[serde(with = "{{^required}}date_serializer_opt{{/required}}{{#required}}date_serializer{{/required}}")]
+  {{/isDate}}
   {{name}}: {{^required}}Option<{{/required}}{{{datatype}}}{{^required}}>{{/required}}{{#hasMore}},{{/hasMore}} {{#example}} // {{{example}}} {{/example}}
 {{/vars}}
 }

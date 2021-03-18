@@ -10,11 +10,12 @@ extern crate url;
 extern crate bigdecimal;
 
 use std::fmt;
-use chrono::{NaiveDateTime, DateTime, FixedOffset, Utc, SecondsFormat};
+use chrono::{Date, NaiveDateTime, DateTime, FixedOffset, Utc, SecondsFormat};
 
 pub mod apis;
 pub mod models;
 pub mod date_serializer;
+pub mod date_serializer_opt;
 pub mod datetime_serializer;
 
 //mod tests;  //Put testing data and token to tests before uncomment
@@ -48,9 +49,14 @@ impl<'a> OutlinePrint<'a> for bool {
         format!("{:?}", self)
     }
 }
-
 impl<'a> OutlinePrint<'a> for chrono::DateTime<chrono::Utc> {
     fn outline_print(&'a self) -> String {
         format!("{}", self.to_rfc3339_opts(SecondsFormat::Secs, true))
     }
 }
+impl<'a> OutlinePrint<'a> for chrono::Date<chrono::Utc> {
+    fn outline_print(&'a self) -> String {
+        self.format("%Y-%m-%d").to_string()
+    }
+}
+

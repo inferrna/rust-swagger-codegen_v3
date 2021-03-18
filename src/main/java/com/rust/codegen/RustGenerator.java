@@ -146,6 +146,7 @@ public class RustGenerator extends DefaultCodegenConfig {
     supportingFiles.add(new SupportingFile("model_mod.mustache", modelFolder, "mod.rs"));
     supportingFiles.add(new SupportingFile("lib.rs", "src", "lib.rs"));
     supportingFiles.add(new SupportingFile("date_serializer.rs", "src", "date_serializer.rs"));
+    supportingFiles.add(new SupportingFile("date_serializer_opt.rs", "src", "date_serializer_opt.rs"));
     supportingFiles.add(new SupportingFile("datetime_serializer.rs", "src", "datetime_serializer.rs"));
     supportingFiles.add(new SupportingFile("Cargo.mustache", "", "Cargo.toml"));
     additionalProperties.put("apiTestPath", "tests");
@@ -457,8 +458,11 @@ public class RustGenerator extends DefaultCodegenConfig {
     } else if (schema instanceof BooleanSchema) {
       return "bool";
     } else if (schema instanceof DateTimeSchema) {
-      schema.setFormat("datetime");
       return "DateTime<Utc>";
+    } else if (schema instanceof DateSchema) {
+      schema.setFormat("date");
+      schema.setTitle("serde(with=date_serializer)");
+      return "Date<Utc>";
     } else {
       if (this.typeMapping.containsKey(schemaType)) {
         return (String)this.typeMapping.get(schemaType);

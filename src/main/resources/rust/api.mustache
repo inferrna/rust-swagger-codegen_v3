@@ -16,7 +16,7 @@ use hyper::Body;
 use hyper::body::Bytes;
 use hyper::body::HttpBody;
 use std::str::FromStr;
-use chrono::{NaiveDateTime, DateTime, FixedOffset, Utc, SecondsFormat};
+use chrono::{Date, NaiveDateTime, DateTime, FixedOffset, Utc, SecondsFormat};
 use crate::OutlinePrint;
 use crate::models::*;
 use super::{Error, configuration};
@@ -106,7 +106,7 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static>{{classn
                 query.append_pair(key, val);
             }
 {{/hasAuthMethods}}
-            if has_query_params || auth_query.len()>0 {
+            if has_query_params{{#hasAuthMethods}} || auth_query.len()>0 {{/hasAuthMethods}} {
                 format!("/?{}", query.finish())
             } else {
                 "".to_string()
