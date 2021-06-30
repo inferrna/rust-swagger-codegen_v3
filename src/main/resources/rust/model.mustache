@@ -25,7 +25,7 @@ pub struct {{classname}} {
   {{/dataFormat}}
   #[serde(rename = "{{{baseName}}}")]
   {{#isDate}}
-  #[serde({{^required}}default, with = "date_serializer_opt{{/required}}{{#required}}with = date_serializer{{/required}}")]
+  #[serde({{^required}}default, with = "date_serializer_opt{{/required}}{{#required}}with = "date_serializer{{/required}}")]
   {{/isDate}}
   {{name}}: {{^required}}Option<{{/required}}{{{datatype}}}{{^required}}>{{/required}}{{#hasMore}},{{/hasMore}} {{#example}} // {{{example}}} {{/example}}
 {{/vars}}
