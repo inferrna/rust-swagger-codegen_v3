@@ -15,14 +15,14 @@ use std::clone::Clone;
 //        S: Serializer
 //
 // although it may also be generic over the input types T.
-pub fn serialize<S>(
-    date: &DateTime<FixedOffset>,
+pub fn serialize_dt<S>(
+    date: &DateTime<Utc>,
     serializer: S,
 ) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
-    let s = format!("{}", date.to_rfc3339_opts(SecondsFormat::Secs, true));
+    let s = format!("{}", date.to_rfc3339_opts(SecondsFormat::Secs, false));
     serializer.serialize_str(&s)
 }
 
@@ -33,12 +33,12 @@ where
 //        D: Deserializer<'de>
 //
 // although it may also be generic over the output types T.
-pub fn deserialize<'de, D>(
+pub fn deserialize_dt<'de, D>(
     deserializer: D,
-) -> Result<DateTime<FixedOffset>, <D as Deserializer<'de>>::Error>
+) -> Result<DateTime<Utc>, <D as Deserializer<'de>>::Error>
 where
     D: Deserializer<'de>,
 {
     let s = String::deserialize(deserializer)?;
-    DateTime::parse_from_rfc3339(&s).map_err(serde::de::Error::custom)
+    DateTime::parse_from_rfc3339(&s).map_err(serde::de::Error::custom).map(|r| r.with_timezone(&Utc))
 }

@@ -13,7 +13,8 @@ use chrono::{Date, NaiveDateTime, DateTime, FixedOffset, Utc};
 use crate::models::*;
 use crate::date_serializer;
 use crate::date_serializer_opt;
-//use crate::datetime_serializer;
+//Uncomment this to deal with limited rfc support on server side
+//use crate::datetime_serializer::*;
 
 {{^isEnum}}
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
@@ -27,6 +28,10 @@ pub struct {{classname}} {
   {{#isDate}}
   #[serde({{^required}}default, with = "date_serializer_opt{{/required}}{{#required}}with = "date_serializer{{/required}}")]
   {{/isDate}}
+  {{#isDateTime}}
+  //Uncomment this also to deal with limited rfc support on server side
+  //#[serde(serialize_with = "serialize_dt", deserialize_with = "deserialize_dt")]
+  {{/isDateTime}}
   {{name}}: {{^required}}Option<{{/required}}{{{datatype}}}{{^required}}>{{/required}}{{#hasMore}},{{/hasMore}} {{#example}} // {{{example}}} {{/example}}
 {{/vars}}
 }

@@ -154,6 +154,9 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static>{{classn
         {{#hasBodyParam}}
         {{#bodyParams}}
         let serialized = serde_json::to_string(&{{paramName}}).unwrap();
+        //Pretty print request body if needed for some dbg reasons
+        //let value_result: serde_json::Value = serde_json::from_str(&serialized).unwrap();
+        //eprintln!("\n{}\n", serde_json::to_string_pretty(&value_result).unwrap());
         headers.insert(hyper::header::CONTENT_TYPE, "application/json".parse().unwrap());
         headers.insert(hyper::header::CONTENT_LENGTH, format!("{}", serialized.len()).parse().unwrap());
         let somebody = Body::from(serialized);
