@@ -1,6 +1,6 @@
 //Taken here https://earvinkayonga.com/posts/deserialize-date-in-rust/
 use serde::{de::Error, Serializer, Serialize, Deserializer, Deserialize};
-use chrono::{Date, Datelike, NaiveDateTime, DateTime, Utc, Local, TimeZone, FixedOffset };
+use chrono::{NaiveDate, Date, Datelike, NaiveDateTime, DateTime, Utc, Local, TimeZone, FixedOffset };
 use std::clone::Clone;
 use std::str::FromStr;
 
@@ -45,7 +45,7 @@ where
     D: Deserializer<'de>,
 {
     let s = String::deserialize(deserializer)?;
-    DateTime::parse_from_str(&s, FORMAT_IN)
+    NaiveDate::parse_from_str(&s, FORMAT_IN)
         .map_err(serde::de::Error::custom)
         .map(|r|
             Some(
