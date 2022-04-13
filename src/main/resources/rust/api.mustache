@@ -7,6 +7,7 @@ use std::collections::HashMap;
 
 use hyper;
 use serde_json;
+use serde_json::Value;
 use tokio::runtime::Runtime;
 use futures;
 use futures::{Future, Stream};
@@ -48,6 +49,20 @@ pub trait {{classname}} {
 impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static>{{classname}} for {{classname}}Client<C> {
 {{#operations}}
 {{#operation}}
+ ///
+ /// {{summary}}
+ ///
+ /// {{notes}}
+ ///
+ /// # Arguments
+ ///
+ {{#allParams}}
+ {{#summary}}
+ /// * `{{paramName}}` - {{summary}}
+ /// {{notes}}
+ ///
+ {{/summary}}
+ {{/allParams}}
     async fn {{{operationId}}}(&self, {{#allParams}}{{paramName}}: {{#isString}}&str{{/isString}}{{#isUuid}}&str{{/isUuid}}{{^isString}}{{^isUuid}}{{^isPrimitiveType}}{{^isContainer}}crate::models::{{/isContainer}}{{/isPrimitiveType}}{{{dataType}}}{{/isUuid}}{{/isString}}{{#hasMore}}, {{/hasMore}}{{/allParams}}) -> Result<{{^returnType}}(){{/returnType}}{{#returnType}}{{{returnType}}}{{/returnType}}, Error<serde_json::Value>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
@@ -72,8 +87,11 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static>{{classn
 {{/isApiKey}}
 {{#isBasic}}
         if let Some(ref auth_conf) = configuration.basic_auth {
-            let basic = Authorization::basic(auth_conf.0, auth_conf.1);
-            auth_headers.insert("Authorization".to_owned(), basic.to_string());
+            let pass = auth_conf.1.as_ref().map(|p| format!(":{}", p)).unwrap_or("".to_string());
+            let basic_unencoded = format!("{}{}", &auth_conf.0, pass);
+            let basic_encoded = base64::encode(basic_unencoded.as_bytes());
+            let basic_full = format!("Basic {}", basic_encoded);
+            auth_headers.insert("Authorization".to_owned(), basic_full.to_string());
         };
 {{/isBasic}}
 {{#isOAuth}}
@@ -98,7 +116,14 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static>{{classn
             query.append_pair("{{baseName}}", &{{paramName}}.outline_print() );
         {{/isPrimitiveType}}
         {{^isPrimitiveType}}
+          {{#isListContainer}}
+            for p in {{paramName}}.iter() {
+                query.append_pair("{{baseName}}", &p.to_string());
+            }
+          {{/isListContainer}}
+          {{^isListContainer}}
             query.append_pair("{{baseName}}", &{{paramName}}.to_string());
+          {{/isListContainer}}
         {{/isPrimitiveType}}
 {{/queryParams}}
 {{#hasAuthMethods}}
