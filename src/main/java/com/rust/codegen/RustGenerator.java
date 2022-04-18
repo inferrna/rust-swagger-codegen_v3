@@ -10,6 +10,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.validation.constraints.NotNull;
 import java.util.*;
 import java.io.File;
 
@@ -174,7 +175,9 @@ public class RustGenerator extends DefaultCodegenConfig {
 
     typeMapping.clear();
     typeMapping.put("integer", "i32");
+    typeMapping.put("int32", "i32");
     typeMapping.put("long", "i64");
+    typeMapping.put("int64", "i64");
     typeMapping.put("number", "f32");
     typeMapping.put("float", "f32");
     typeMapping.put("double", "f64");
@@ -451,10 +454,21 @@ public class RustGenerator extends DefaultCodegenConfig {
       return "::std::collections::HashMap<String, " + this.getTypeDeclaration(inner) + ">";
     } else if (schema instanceof StringSchema) {
       return "String";
-    } else if (schema instanceof NumberSchema) {
-      return "f32";
-    } else if (schema instanceof IntegerSchema) {
-      return "i64";
+    } else if (schema instanceof NumberSchema || schema instanceof IntegerSchema) {
+      String format = schema.getFormat();
+      String result;
+      if(format != null) {
+        result = typeMapping.get(format);
+      } else if (schema instanceof IntegerSchema) {
+        result = "i64";
+      } else if (schema instanceof NumberSchema) {
+        result = "f64";
+      } else {
+        System.out.println("WARNING: unknown schema "+schema.getType());
+        result = "f64";
+      }
+      System.out.printf("format = %s, name = %s, result = %s%n", format, schema.getType(), result);
+      return result;
     } else if (schema instanceof BooleanSchema) {
       return "bool";
     } else if (schema instanceof DateTimeSchema) {
@@ -514,7 +528,8 @@ public class RustGenerator extends DefaultCodegenConfig {
   @Override
   public void postProcessParameter(CodegenParameter parameter) {
     super.postProcessParameter(parameter);
-    if(parameter.getDataType().equals("DateTime")) {
+    String dataType = parameter.getDataType();
+    if(dataType != null && dataType.equals("DateTime")) {
       parameter.dataFormat = "datetime";
       if(parameter.example == null) parameter.example = "2019-03-19T18:38:33.131642+03:00";
     }
