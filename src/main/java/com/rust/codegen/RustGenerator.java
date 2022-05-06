@@ -17,6 +17,7 @@ import java.io.File;
 public class RustGenerator extends DefaultCodegenConfig {
 
   static Logger LOGGER = LoggerFactory.getLogger(RustGenerator.class);
+  private final boolean useNaiveDate;
   // source folder where to write the files
   protected String sourceFolder = "src";
   protected String apiVersion = "1.0.0";
@@ -60,6 +61,10 @@ public class RustGenerator extends DefaultCodegenConfig {
 
   public RustGenerator() {
     super();
+
+    useNaiveDate = Optional.ofNullable(System.getProperty("useNaiveDate"))
+            .map(v -> v.equals("true"))
+            .orElse(false);
 
     // set the output folder here
     outputFolder = "generated-code/rust";
@@ -149,6 +154,8 @@ public class RustGenerator extends DefaultCodegenConfig {
     supportingFiles.add(new SupportingFile("date_serializer.rs", "src", "date_serializer.rs"));
     supportingFiles.add(new SupportingFile("date_serializer_opt.rs", "src", "date_serializer_opt.rs"));
     supportingFiles.add(new SupportingFile("datetime_serializer.rs", "src", "datetime_serializer.rs"));
+    supportingFiles.add(new SupportingFile("serialize_quoted_numbers.rs", "src", "serialize_quoted_numbers.rs"));
+    supportingFiles.add(new SupportingFile("serialize_quoted_numbers_opt.rs", "src", "serialize_quoted_numbers_opt.rs"));
     supportingFiles.add(new SupportingFile("Cargo.mustache", "", "Cargo.toml"));
     additionalProperties.put("apiTestPath", "tests");
     apiTestTemplateFiles.put("api_test.mustache", ".rs");
@@ -277,6 +284,28 @@ public class RustGenerator extends DefaultCodegenConfig {
       if (v instanceof CodegenModel) {
         CodegenModel model = (CodegenModel) v;
         for (CodegenProperty param : model.vars) {
+          if(param.getIsString() && param.getDataFormat()!=null) {
+            String format = param.getDataFormat();
+            String extension = null;
+            switch (format) {
+              case "float":
+                extension = "x-is-float";
+                break;
+              case "double":
+                extension = "x-is-double";
+                break;
+              case "int32":
+                extension = "x-is-int";
+                break;
+              case "int64":
+                extension = "x-is-long";
+                break;
+            }
+            if(extension!=null) {
+              param.vendorExtensions.put(extension, true);
+              param.vendorExtensions.put("x-is-numeric", true); //Then check it in template as isString and isNumeric same time
+            }
+          }
           if (!addedTimeImport && param.baseType.equals("DateTime")) {
             imports.add(createMapping("use", "chrono::{NaiveDateTime, DateTime, Utc, Local, TimeZone, SecondsFormat, Utc}"));
             addedTimeImport = true;
@@ -453,30 +482,33 @@ public class RustGenerator extends DefaultCodegenConfig {
       inner = (Schema)mapSchema.getAdditionalProperties();
       return "::std::collections::HashMap<String, " + this.getTypeDeclaration(inner) + ">";
     } else if (schema instanceof StringSchema) {
-      return "String";
+      String format = schema.getFormat();
+      if(format != null && typeMapping.containsKey(format)) {
+        return typeMapping.get(format);
+      } else {
+        return "String";
+      }
     } else if (schema instanceof NumberSchema || schema instanceof IntegerSchema) {
       String format = schema.getFormat();
       String result;
       if(format != null) {
         result = typeMapping.get(format);
       } else if (schema instanceof IntegerSchema) {
-        result = "i64";
+        result = "i32";
       } else if (schema instanceof NumberSchema) {
-        result = "f64";
+        result = "f32";
       } else {
         System.out.println("WARNING: unknown schema "+schema.getType());
         result = "f64";
       }
-      System.out.printf("format = %s, name = %s, result = %s%n", format, schema.getType(), result);
       return result;
     } else if (schema instanceof BooleanSchema) {
       return "bool";
     } else if (schema instanceof DateTimeSchema) {
-      return "DateTime<Utc>";
+      return useNaiveDate ? "NaiveDateTime" : "DateTime<Utc>";
     } else if (schema instanceof DateSchema) {
       schema.setFormat("date");
-      schema.setTitle("serde(with=date_serializer)");
-      return "Date<Utc>";
+      return useNaiveDate ? "NaiveDate" : "Date<Utc>";
     } else {
       if (this.typeMapping.containsKey(schemaType)) {
         return (String)this.typeMapping.get(schemaType);
@@ -610,7 +642,6 @@ public class RustGenerator extends DefaultCodegenConfig {
   @Override
   public String toEnumName(CodegenProperty property) {
     String enumName = underscore(toModelName(property.name)).toUpperCase();
-
     // remove [] for array or map of enum
     enumName = enumName.replace("[]", "");
 

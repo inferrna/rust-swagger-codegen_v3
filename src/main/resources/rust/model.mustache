@@ -8,11 +8,13 @@
 
 use serde_json::Value;
 use bigdecimal::BigDecimal;
-use chrono::{Date, NaiveDateTime, DateTime, FixedOffset, Utc};
+use chrono::{Date, NaiveDateTime, NaiveDate, DateTime, FixedOffset, Utc};
 
 use crate::models::*;
 use crate::date_serializer;
 use crate::date_serializer_opt;
+use crate::serialize_quoted_numbers;
+use crate::serialize_quoted_numbers_opt;
 //Uncomment this to deal with limited rfc support on server side
 //use crate::datetime_serializer::*;
 
@@ -25,8 +27,16 @@ pub struct {{classname}} {
   {{/example}}
   {{/dataFormat}}
   #[serde(rename = "{{{baseName}}}")]
+  {{^required}}
+  #[serde(default)]
+  {{/required}}
+  {{#isString}}
+      {{#isNumeric}}
+  #[serde(with = "serialize_quoted_numbers{{^required}}_opt{{/required}}")]
+      {{/isNumeric}}
+  {{/isString}}
   {{#isDate}}
-  #[serde({{^required}}default, with = "date_serializer_opt{{/required}}{{#required}}with = "date_serializer{{/required}}")]
+  //#[serde(with = "date_serializer{{^required}}_opt{{/required}}")]
   {{/isDate}}
   {{#isDateTime}}
   //Uncomment this also to deal with limited rfc support on server side
@@ -66,6 +76,34 @@ impl {{classname}} {
   {{/required}}
 
   {{/vars}}
+
+  pub fn validate(&self) {
+{{#vars}}
+    {{#minimum}}
+    let min_value = {{{datatype}}}::from({{minimum}});
+    {{^required}}
+    if let Some({{name}}) = self.{{name}} {
+      assert!({{name}}>=min_value, "{{classname}}.{{name}} should be >= {{minimum}}");
+    }
+    {{/required}}
+    {{#required}}
+    assert!(self.{{name}}>=min_value, "{{classname}}.{{name}} should be >= {{minimum}}");
+    {{/required}}
+    {{/minimum}}
+    {{#maximum}}
+    let max_value = {{{datatype}}}::from({{maximum}});
+    {{^required}}
+    if let Some({{name}}) = self.{{name}} {
+      assert!({{name}}<=max_value, "{{classname}}.{{name}} should be <= {{maximum}}");
+    }
+    {{/required}}
+    {{#required}}
+    assert!(self.{{name}}<=max_value, "{{classname}}.{{name}} should be <= {{maximum}}");
+    {{/required}}
+    {{/maximum}}
+{{/vars}}
+  }
+
 }
 {{/isEnum}}
 {{#isEnum}}

@@ -17,6 +17,8 @@ pub mod models;
 pub mod date_serializer;
 pub mod date_serializer_opt;
 pub mod datetime_serializer;
+pub mod serialize_quoted_numbers;
+pub mod serialize_quoted_numbers_opt;
 
 //mod tests;  //Put testing data and token to tests before uncomment
 
