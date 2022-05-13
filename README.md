@@ -16,7 +16,9 @@ Use it as generated module as described here https://github.com/swagger-api/swag
 
 Now it's on very early stage. Tested only on https://github.com/TinkoffCreditSystems/invest-openapi/blob/master/src/docs/swagger-ui/swagger.yaml
 
-## Known issues:
-- no version and package name in Cargo.toml
-- sometimes `String` type comes as `::module::String`
-- have to manual put `use bigdecimal::BigDecimal;` where it needed
+## Additional features
+- Can handle quoted for some reasons (https://github.com/OAI/OpenAPI-Specification/issues/704) numbers, described like
+```yaml
+type: string
+format: float
+```
