@@ -14,6 +14,9 @@ import javax.validation.constraints.NotNull;
 import java.util.*;
 import java.io.File;
 
+import static io.swagger.codegen.v3.CodegenConstants.IS_ENUM_EXT_NAME;
+import static io.swagger.codegen.v3.generators.handlebars.ExtensionHelper.getBooleanValue;
+
 public class RustGenerator extends DefaultCodegenConfig {
 
   static Logger LOGGER = LoggerFactory.getLogger(RustGenerator.class);
@@ -283,6 +286,14 @@ public class RustGenerator extends DefaultCodegenConfig {
       Object v = m.get("model");
       if (v instanceof CodegenModel) {
         CodegenModel model = (CodegenModel) v;
+
+        //Here we fix enum name
+        boolean isEnum = getBooleanValue(model, IS_ENUM_EXT_NAME);
+        if(isEnum) {
+          model.setName(toModelName(model.getName()));
+        }
+
+
         for (CodegenProperty param : model.vars) {
           if(param.getIsString() && param.getDataFormat()!=null) {
             String format = param.getDataFormat();
