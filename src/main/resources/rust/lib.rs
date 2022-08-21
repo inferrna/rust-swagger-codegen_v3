@@ -22,7 +22,7 @@ pub mod serialize_quoted_numbers_opt;
 
 //mod tests;  //Put testing data and token to tests before uncomment
 
-pub(crate) trait OutlinePrint<'a>: fmt::Display {
+pub trait OutlinePrint<'a>: fmt::Display {
     fn outline_print(&'a self) -> String {
         format!("{}", self)
     }
@@ -34,13 +34,34 @@ impl<'a> OutlinePrint<'a> for &'a str {
     }
 }
 
+impl<'a> OutlinePrint<'a> for i32 {
+    fn outline_print(&'a self) -> String {
+        format!("{:?}", self)
+    }
+}
 impl<'a> OutlinePrint<'a> for i64 {
     fn outline_print(&'a self) -> String {
         format!("{:?}", self)
     }
 }
 
+impl<'a> OutlinePrint<'a> for u32 {
+    fn outline_print(&'a self) -> String {
+        format!("{:?}", self)
+    }
+}
+impl<'a> OutlinePrint<'a> for u64 {
+    fn outline_print(&'a self) -> String {
+        format!("{:?}", self)
+    }
+}
+
 impl<'a> OutlinePrint<'a> for f32 {
+    fn outline_print(&'a self) -> String {
+        format!("{:?}", self)
+    }
+}
+impl<'a> OutlinePrint<'a> for f64 {
     fn outline_print(&'a self) -> String {
         format!("{:?}", self)
     }
