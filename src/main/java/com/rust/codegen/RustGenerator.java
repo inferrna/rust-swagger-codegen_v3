@@ -21,6 +21,7 @@ public class RustGenerator extends DefaultCodegenConfig {
 
   static Logger LOGGER = LoggerFactory.getLogger(RustGenerator.class);
   private final boolean useNaiveDate;
+  private final boolean allFieldsIsRequired;
   // source folder where to write the files
   protected String sourceFolder = "src";
   protected String apiVersion = "1.0.0";
@@ -66,6 +67,9 @@ public class RustGenerator extends DefaultCodegenConfig {
     super();
 
     useNaiveDate = Optional.ofNullable(System.getProperty("useNaiveDate"))
+            .map(v -> v.equals("true"))
+            .orElse(false);
+    allFieldsIsRequired = Optional.ofNullable(System.getProperty("allFieldsIsRequired"))
             .map(v -> v.equals("true"))
             .orElse(false);
 
@@ -286,15 +290,18 @@ public class RustGenerator extends DefaultCodegenConfig {
       Object v = m.get("model");
       if (v instanceof CodegenModel) {
         CodegenModel model = (CodegenModel) v;
+        ArrayList<CodegenProperty> requiredFields = new ArrayList<>();
 
         //Here we fix enum name
         boolean isEnum = getBooleanValue(model, IS_ENUM_EXT_NAME);
         if(isEnum) {
           model.setName(toModelName(model.getName()));
         }
-
-
         for (CodegenProperty param : model.vars) {
+          if(allFieldsIsRequired) {
+            param.setRequired(true);
+            requiredFields.add(param);
+          }
           if(param.getIsString() && param.getDataFormat()!=null) {
             String format = param.getDataFormat();
             String extension = null;
@@ -323,6 +330,9 @@ public class RustGenerator extends DefaultCodegenConfig {
           } else {
             imports.add(createMapping("use", param.baseType));
           }
+        }
+        if(allFieldsIsRequired) {
+          model.setRequiredVars(requiredFields);
         }
       }
     }
