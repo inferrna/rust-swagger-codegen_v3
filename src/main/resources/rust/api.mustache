@@ -11,8 +11,6 @@ use serde_json::Value;
 use tokio::runtime::Runtime;
 use futures;
 use futures::{Future, Stream};
-use bigdecimal::BigDecimal;
-
 use hyper::Body;
 use hyper::body::Bytes;
 use hyper::body::HttpBody;
@@ -23,6 +21,9 @@ use crate::models::*;
 use super::{Error, configuration};
 use headers::{Authorization, Header};
 use headers::authorization::Credentials;
+{{! #isUseDecimal}}
+use rust_decimal::Decimal;
+{{! /isUseDecimal}}
 
 pub struct {{{classname}}}Client<C: hyper::client::connect::Connect + Clone + Send + Sync> {
     configuration: Arc<configuration::Configuration<C>>,

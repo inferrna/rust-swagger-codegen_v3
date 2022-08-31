@@ -1,5 +1,6 @@
 package com.rust.codegen;
 
+import com.github.jknack.handlebars.Handlebars;
 import io.swagger.codegen.v3.*;
 import io.swagger.codegen.v3.generators.DefaultCodegenConfig;
 import io.swagger.codegen.v3.generators.handlebars.ExtensionHelper;
@@ -21,6 +22,7 @@ public class RustGenerator extends DefaultCodegenConfig {
 
   static Logger LOGGER = LoggerFactory.getLogger(RustGenerator.class);
   private final boolean useNaiveDate;
+  private final boolean useDecimal;
   private final boolean allFieldsIsRequired;
   // source folder where to write the files
   protected String sourceFolder = "src";
@@ -72,7 +74,9 @@ public class RustGenerator extends DefaultCodegenConfig {
     allFieldsIsRequired = Optional.ofNullable(System.getProperty("allFieldsIsRequired"))
             .map(v -> v.equals("true"))
             .orElse(false);
-
+    useDecimal = Optional.ofNullable(System.getProperty("useDecimal"))
+            .map(v -> v.equals("true"))
+            .orElse(false);
     // set the output folder here
     outputFolder = "generated-code/rust";
 
@@ -157,7 +161,7 @@ public class RustGenerator extends DefaultCodegenConfig {
     supportingFiles.add(new SupportingFile("api_mod.mustache", apiFolder, "mod.rs"));
     supportingFiles.add(new SupportingFile("api_test_mod.mustache", testsFolder, "mod.rs"));
     supportingFiles.add(new SupportingFile("model_mod.mustache", modelFolder, "mod.rs"));
-    supportingFiles.add(new SupportingFile("lib.rs", "src", "lib.rs"));
+    supportingFiles.add(new SupportingFile("lib.mustache", "src", "lib.rs"));
     supportingFiles.add(new SupportingFile("date_serializer.rs", "src", "date_serializer.rs"));
     supportingFiles.add(new SupportingFile("date_serializer_opt.rs", "src", "date_serializer_opt.rs"));
     supportingFiles.add(new SupportingFile("datetime_serializer.rs", "src", "datetime_serializer.rs"));
@@ -182,7 +186,7 @@ public class RustGenerator extends DefaultCodegenConfig {
                     "i8", "i16", "i32", "i64",
                     "u8", "u16", "u32", "u64",
                     "f32", "f64", "str", "String",
-                    "char", "bool", "Vec<u8>", "File", "BigDecimal")
+                    "char", "bool", "Vec<u8>", "File")
     );
 
     instantiationTypes.clear();
@@ -192,13 +196,19 @@ public class RustGenerator extends DefaultCodegenConfig {
     typeMapping.put("int32", "i32");
     typeMapping.put("long", "i64");
     typeMapping.put("int64", "i64");
-    typeMapping.put("number", "f32");
-    typeMapping.put("float", "f32");
-    typeMapping.put("double", "f64");
+    if(useDecimal) {
+      typeMapping.put("number", "Decimal");
+      typeMapping.put("float", "Decimal");
+      typeMapping.put("double", "Decimal");
+    } else {
+      typeMapping.put("number", "f32");
+      typeMapping.put("float", "f32");
+      typeMapping.put("double", "f64");
+    }
     typeMapping.put("boolean", "bool");
     typeMapping.put("string", "String");
     typeMapping.put("UUID", "String");
-    typeMapping.put("date", "string");
+    typeMapping.put("date", "String");
     typeMapping.put("DateTime", "String");
     typeMapping.put("password", "String");
     typeMapping.put("file", "File");
@@ -268,7 +278,6 @@ public class RustGenerator extends DefaultCodegenConfig {
   @Override
   public Map<String, Object> postProcessAllModels(Map<String, Object> objs) {
     Map<String, Object> allProcessedModels = super.postProcessAllModels(objs);
-
     return allProcessedModels;
   }
 
@@ -517,10 +526,14 @@ public class RustGenerator extends DefaultCodegenConfig {
       } else if (schema instanceof IntegerSchema) {
         result = "i32";
       } else if (schema instanceof NumberSchema) {
-        result = "f32";
+        if(useDecimal) {
+          result = "Decimal";
+        } else {
+          result = "f64";
+        }
       } else {
         System.out.println("WARNING: unknown schema "+schema.getType());
-        result = "f64";
+        result = "i64";
       }
       return result;
     } else if (schema instanceof BooleanSchema) {

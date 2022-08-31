@@ -7,7 +7,9 @@
 {{/description}}
 
 use serde_json::Value;
-use bigdecimal::BigDecimal;
+{{! #isUseDecimal}}
+use rust_decimal::Decimal;
+{{! /isUseDecimal}}
 use chrono::{Date, NaiveDateTime, NaiveDate, DateTime, FixedOffset, Utc};
 
 use crate::models::*;

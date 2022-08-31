@@ -7,10 +7,14 @@ extern crate serde;
 extern crate serde_json;
 extern crate futures;
 extern crate url;
-extern crate bigdecimal;
+{{! #isUseDecimal}}
+extern crate rust_decimal;
+{{! /isUseDecimal}}
+
 
 use std::fmt;
 use chrono::{Date, NaiveDateTime, DateTime, FixedOffset, Utc, SecondsFormat};
+pub use rust_decimal::Decimal;
 
 pub mod apis;
 pub mod models;
@@ -34,6 +38,11 @@ impl<'a> OutlinePrint<'a> for &'a str {
     }
 }
 
+impl<'a> OutlinePrint<'a> for Decimal {
+    fn outline_print(&'a self) -> String {
+        format!("{}", self)
+    }
+}
 impl<'a> OutlinePrint<'a> for i32 {
     fn outline_print(&'a self) -> String {
         format!("{:?}", self)
