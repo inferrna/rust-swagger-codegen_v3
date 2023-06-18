@@ -1,7 +1,7 @@
 {{>partial_header}}
 use hyper;
 use std::collections::HashMap;
-use hyper::{Body, Client};
+use hyper::Body;
 
 pub struct Configuration<C: hyper::client::connect::Connect + Clone + Send + Sync> {
   pub base_path: String,

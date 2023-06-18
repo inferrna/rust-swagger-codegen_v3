@@ -1,9 +1,8 @@
 package com.rust.codegen;
 
-import com.github.jknack.handlebars.Handlebars;
+import com.ibm.icu.text.Transliterator;
 import io.swagger.codegen.v3.*;
 import io.swagger.codegen.v3.generators.DefaultCodegenConfig;
-import io.swagger.codegen.v3.generators.handlebars.ExtensionHelper;
 import io.swagger.codegen.v3.generators.util.OpenAPIUtil;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.media.*;
@@ -11,7 +10,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.validation.constraints.NotNull;
 import java.util.*;
 import java.io.File;
 
@@ -21,7 +19,6 @@ import static io.swagger.codegen.v3.generators.handlebars.ExtensionHelper.getBoo
 public class RustGenerator extends DefaultCodegenConfig {
 
   static Logger LOGGER = LoggerFactory.getLogger(RustGenerator.class);
-  private final boolean useNaiveDate;
   private final boolean useDecimal;
   private final boolean allFieldsIsRequired;
   // source folder where to write the files
@@ -34,6 +31,7 @@ public class RustGenerator extends DefaultCodegenConfig {
   protected String apiFolder = "src/apis";
   protected String testsFolder = "src/tests";
   protected String modelFolder= "src/models";
+  protected Transliterator transliterator;
 
   /**
    * Configures the type of generator.
@@ -67,16 +65,16 @@ public class RustGenerator extends DefaultCodegenConfig {
 
   public RustGenerator() {
     super();
+    //String rules = "Any-Latin; Latin-ASCII";
+    //transliterator = Transliterator.createFromRules("transliterator", rules, Transliterator.FORWARD);
+    transliterator = Transliterator.getInstance("Any-Latin");
 
-    useNaiveDate = Optional.ofNullable(System.getProperty("useNaiveDate"))
-            .map(v -> v.equals("true"))
-            .orElse(false);
     allFieldsIsRequired = Optional.ofNullable(System.getProperty("allFieldsIsRequired"))
             .map(v -> v.equals("true"))
             .orElse(false);
     useDecimal = Optional.ofNullable(System.getProperty("useDecimal"))
             .map(v -> v.equals("true"))
-            .orElse(false);
+            .orElse(true);
     // set the output folder here
     outputFolder = "generated-code/rust";
 
@@ -100,7 +98,10 @@ public class RustGenerator extends DefaultCodegenConfig {
     apiTemplateFiles.put(
             "api.mustache",   // the template to use
             ".rs");       // the extension for each file to write
-
+    /*apiTemplateFiles.put(
+            "api2nd.mustache",   // the template to use
+            "2nd.rs");       // the extension for each file to write
+    */
     modelDocTemplateFiles.put("model_doc.mustache", ".md");
     apiDocTemplateFiles.put("api_doc.mustache", ".md");
 
@@ -233,7 +234,7 @@ public class RustGenerator extends DefaultCodegenConfig {
    */
   @Override
   public String escapeReservedWord(String name) {
-    return "_" + name;  // add an underscore to the name
+    return "r" + name;  // add an underscore to the name
   }
 
   public Map<String, String> createMapping(String key, String value) {
@@ -309,6 +310,9 @@ public class RustGenerator extends DefaultCodegenConfig {
         for (CodegenProperty param : model.vars) {
           if(allFieldsIsRequired) {
             param.setRequired(true);
+          }
+          if (!param.getIsNullable() || param.required) {
+            param.required = true;
             requiredFields.add(param);
           }
           if(param.getIsString() && param.getDataFormat()!=null) {
@@ -340,9 +344,8 @@ public class RustGenerator extends DefaultCodegenConfig {
             imports.add(createMapping("use", param.baseType));
           }
         }
-        if(allFieldsIsRequired) {
-          model.setRequiredVars(requiredFields);
-        }
+        System.out.printf("Set %d required fields for model %s%n", requiredFields.size(), model.getName());
+        model.setRequiredVars(requiredFields);
       }
     }
     // recursively add import for mapping one type to multiple imports
@@ -377,17 +380,19 @@ public class RustGenerator extends DefaultCodegenConfig {
     return (outputFolder + File.separator + modelFolder).replace("/", File.separator);
   }
 
+  String transliterate(String inputText) {
+      return transliterator.transliterate(inputText);
+  }
+
   @Override
   public String toVarName(String name) {
     // replace - with _ e.g. created-at => created_at
+    name = transliterate(name);
     name = sanitizeName(name.replaceAll("-", "_"));
 
-    // if it's all uppper case, do nothing
-    if (name.matches("^[A-Z_]*$"))
-      return name;
 
     // snake_case, e.g. PetId => pet_id
-    name = underscore(name);
+    name = underscore(name).replace("__", "_");
 
     // for reserved word or word starting with number, append _
     if (isReservedWord(name))
@@ -405,15 +410,22 @@ public class RustGenerator extends DefaultCodegenConfig {
     return toVarName(name);
   }
 
+  public static String pascalize(String word) {
+    String res = DefaultCodegenConfig.camelize(word);
+    res = res.substring(0, 1).toUpperCase() + res.substring(1);
+    return res;
+  }
+
   @Override
   public String toModelName(String name) {
     // camelize the model name
     // phone_number => PhoneNumber
-    return camelize(toModelFilename(name));
+    return pascalize(toModelFilename(name));
   }
 
   @Override
   public String toModelFilename(String name) {
+    name = transliterate(name);
     if (!StringUtils.isEmpty(modelNamePrefix)) {
       name = modelNamePrefix + "_" + name;
     }
@@ -442,6 +454,7 @@ public class RustGenerator extends DefaultCodegenConfig {
   @Override
   public String toApiTestFilename(String name) {
     // replace - with _ e.g. created-at => created_at
+    name = transliterate(name);
     name = name.replaceAll("-", "_"); // FIXME: a parameter should not be assigned. Also declare the methods parameters as 'final'.
 
     // e.g. PetApi.rs => pet_api.rs
@@ -450,11 +463,31 @@ public class RustGenerator extends DefaultCodegenConfig {
 
   @Override
   public String toApiFilename(String name) {
+    name = transliterate(name);
     // replace - with _ e.g. created-at => created_at
     name = name.replaceAll("-", "_"); // FIXME: a parameter should not be assigned. Also declare the methods parameters as 'final'.
 
     // e.g. PetApi.rs => pet_api.rs
-    return underscore(name) + "_api";
+    String underscored = underscore(name);
+    if (underscored.endsWith("api")) {
+      return underscored;
+    } else{
+      return underscored + "_api";
+    }
+  }
+  @Override
+  public String toApiName(String name) {
+    name = transliterate(name);
+    // replace - with _ e.g. created-at => created_at
+    name = name.replaceAll("-", "_"); // FIXME: a parameter should not be assigned. Also declare the methods parameters as 'final'.
+
+    // e.g. PetApi.rs => pet_api.rs
+    String pascalized = pascalize(name);
+    if (pascalized.endsWith("Api")) {
+      return pascalized;
+    } else{
+      return pascalized + "Api";
+    }
   }
 
   @Override
@@ -539,10 +572,10 @@ public class RustGenerator extends DefaultCodegenConfig {
     } else if (schema instanceof BooleanSchema) {
       return "bool";
     } else if (schema instanceof DateTimeSchema) {
-      return useNaiveDate ? "NaiveDateTime" : "DateTime<Utc>";
+      return "NaiveDateTime";
     } else if (schema instanceof DateSchema) {
       schema.setFormat("date");
-      return useNaiveDate ? "NaiveDate" : "Date<Utc>";
+      return "NaiveDate";
     } else {
       if (this.typeMapping.containsKey(schemaType)) {
         return (String)this.typeMapping.get(schemaType);
@@ -574,7 +607,7 @@ public class RustGenerator extends DefaultCodegenConfig {
       sanitizedOperationId = "call_" + sanitizedOperationId;
     }
 
-    return underscore(sanitizedOperationId);
+    return underscore(sanitizedOperationId).replace("__", "_");
   }
 
 
@@ -586,7 +619,8 @@ public class RustGenerator extends DefaultCodegenConfig {
     List<CodegenOperation> operations = (List<CodegenOperation>) objectMap.get("operation");
     for (CodegenOperation operation : operations) {
       // http method verb conversion (e.g. PUT => Put)
-      operation.httpMethod = camelize(operation.httpMethod.toUpperCase());
+      operation.httpMethod = pascalize(operation.httpMethod.toUpperCase());
+      operation.baseName = pascalize(operation.baseName.toUpperCase());
     }
 
     return objs;
@@ -599,6 +633,8 @@ public class RustGenerator extends DefaultCodegenConfig {
       parameter.dataFormat = "datetime";
       if(parameter.example == null) parameter.example = "2019-03-19T18:38:33.131642+03:00";
     }
+    if(parameter.example != null) System.out.printf("Example for %s is %s\n", parameter.paramName, parameter.example);
+    if(parameter.testExample != null) System.out.printf("testExample for %s is %s\n", parameter.paramName, parameter.testExample);
   }
 
   @Override

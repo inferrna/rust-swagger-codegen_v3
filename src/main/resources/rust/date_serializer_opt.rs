@@ -1,7 +1,5 @@
-//Taken here https://earvinkayonga.com/posts/deserialize-date-in-rust/
 use serde::{de::Error, Serializer, Serialize, Deserializer, Deserialize};
-use chrono::{NaiveDate, Date, Datelike, NaiveDateTime, DateTime, Utc, Local, TimeZone, FixedOffset };
-use std::clone::Clone;
+use chrono::NaiveDate;
 use std::str::FromStr;
 
 
@@ -17,7 +15,7 @@ const FORMAT_IN: &'static str = "%Y-%m-%d";
 //
 // although it may also be generic over the input types T.
 pub fn serialize<S>(
-    _date: &Option<Date<Utc>>,
+    _date: &Option<NaiveDate>,
     serializer: S,
 ) -> Result<S::Ok, S::Error>
 where
@@ -40,16 +38,12 @@ where
 // although it may also be generic over the output types T.
 pub fn deserialize<'de, D>(
     deserializer: D,
-) -> Result<Option<Date<Utc>>, <D as Deserializer<'de>>::Error>
+) -> Result<Option<NaiveDate>, <D as Deserializer<'de>>::Error>
 where
     D: Deserializer<'de>,
 {
     let s = String::deserialize(deserializer)?;
     NaiveDate::parse_from_str(&s, FORMAT_IN)
         .map_err(serde::de::Error::custom)
-        .map(|r|
-            Some(
-                Utc.ymd(r.year(), r.month(), r.day())
-            )
-        )
+        .map(|r| Some(r))
 }

@@ -13,7 +13,7 @@ extern crate rust_decimal;
 
 
 use std::fmt;
-use chrono::{Date, NaiveDateTime, DateTime, FixedOffset, Utc, SecondsFormat};
+use chrono::{NaiveDate, NaiveDateTime, DateTime, FixedOffset, Utc, SecondsFormat};
 pub use rust_decimal::Decimal;
 
 pub mod apis;
@@ -86,9 +86,8 @@ impl<'a> OutlinePrint<'a> for chrono::DateTime<chrono::Utc> {
         format!("{}", self.to_rfc3339_opts(SecondsFormat::Secs, true))
     }
 }
-impl<'a> OutlinePrint<'a> for chrono::Date<chrono::Utc> {
+impl<'a> OutlinePrint<'a> for chrono::NaiveDate {
     fn outline_print(&'a self) -> String {
         self.format("%Y-%m-%d").to_string()
     }
 }
-

@@ -10,8 +10,9 @@ use serde_json::Value;
 {{! #isUseDecimal}}
 use rust_decimal::Decimal;
 {{! /isUseDecimal}}
-use chrono::{Date, NaiveDateTime, NaiveDate, DateTime, FixedOffset, Utc};
+use chrono::{NaiveDateTime, NaiveDate, DateTime, FixedOffset, Utc};
 
+use crate::OutlinePrint;
 use crate::models::*;
 use crate::date_serializer;
 use crate::date_serializer_opt;
@@ -119,10 +120,23 @@ pub enum {{name}} {
   {{/enumVars}}
   {{/allowableValues}}
 }
+/*
 impl ToString for {{name}} {
   fn to_string(&self) -> String {
       serde_json::to_value(self).unwrap().as_str().unwrap().to_string()
   }
+}
+*/
+impl std::fmt::Display for {{name}} {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let formatted = serde_json::to_value(self).unwrap().as_str().unwrap().to_string();
+        write!(f, "{:?}", formatted)
+    }
+}
+impl<'a> OutlinePrint<'a> for {{name}} {
+    fn outline_print(&'a self) -> String {
+        serde_json::to_value(self).unwrap().as_str().unwrap().to_string()
+    }
 }
 {{/isEnum}}
 

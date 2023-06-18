@@ -15,7 +15,7 @@ use hyper::Body;
 use hyper::body::Bytes;
 use hyper::body::HttpBody;
 use std::str::FromStr;
-use chrono::{Date, NaiveDateTime, DateTime, FixedOffset, Utc, SecondsFormat};
+use chrono::{NaiveDate, NaiveDateTime, DateTime, FixedOffset, Utc, SecondsFormat};
 use crate::{OutlinePrint};
 use crate::models::*;
 use super::{Error, configuration};
@@ -41,7 +41,7 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static> {{{clas
 pub trait {{classname}} {
 {{#operations}}
 {{#operation}}
-    async fn {{{operationId}}}(&self, {{#allParams}}{{paramName}}: {{#isString}}&str{{/isString}}{{#isUuid}}&str{{/isUuid}}{{^isString}}{{^isUuid}}{{^isPrimitiveType}}{{^isContainer}}crate::models::{{/isContainer}}{{/isPrimitiveType}}{{{dataType}}}{{/isUuid}}{{/isString}}{{#hasMore}}, {{/hasMore}}{{/allParams}}) -> Result<{{^returnType}}(){{/returnType}}{{#returnType}}{{{returnType}}}{{/returnType}}, Error<serde_json::Value>>;
+    async fn {{{operationId}}}(&self, {{#allParams}}{{paramName}}: {{^required}}Option<{{/required}}{{#isString}}&str{{/isString}}{{#isUuid}}&str{{/isUuid}}{{^isString}}{{^isUuid}}{{^isPrimitiveType}}{{^isContainer}}crate::models::{{/isContainer}}{{/isPrimitiveType}}{{{dataType}}}{{/isUuid}}{{/isString}}{{^required}}>{{/required}}{{#hasMore}}, {{/hasMore}}{{/allParams}}) -> Result<{{^returnType}}(){{/returnType}}{{#returnType}}{{{returnType}}}{{/returnType}}, Error<serde_json::Value>>;
 {{/operation}}
 {{/operations}}
 }
@@ -58,13 +58,12 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static>{{classn
  /// # Arguments
  ///
  {{#allParams}}
- {{#summary}}
- /// * `{{paramName}}` - {{summary}}
- /// {{notes}}
+ /// * `{{paramName}}` {{this.description}}{{#required}} (required){{/required}}{{^required}} (optional{{#defaultValue}}, default to {{{.}}}{{/defaultValue}}){{/required}}
+ /// {{#example}}Example: {{{example}}}{{/example}}
+ /// {{this.notes}}
  ///
- {{/summary}}
  {{/allParams}}
-    async fn {{{operationId}}}(&self, {{#allParams}}{{paramName}}: {{#isString}}&str{{/isString}}{{#isUuid}}&str{{/isUuid}}{{^isString}}{{^isUuid}}{{^isPrimitiveType}}{{^isContainer}}crate::models::{{/isContainer}}{{/isPrimitiveType}}{{{dataType}}}{{/isUuid}}{{/isString}}{{#hasMore}}, {{/hasMore}}{{/allParams}}) -> Result<{{^returnType}}(){{/returnType}}{{#returnType}}{{{returnType}}}{{/returnType}}, Error<serde_json::Value>> {
+    async fn {{{operationId}}}(&self, {{#allParams}}{{paramName}}: {{^required}}Option<{{/required}}{{#isString}}&str{{/isString}}{{#isUuid}}&str{{/isUuid}}{{^isString}}{{^isUuid}}{{^isPrimitiveType}}{{^isContainer}}crate::models::{{/isContainer}}{{/isPrimitiveType}}{{{dataType}}}{{/isUuid}}{{/isString}}{{^required}}>{{/required}}{{#hasMore}}, {{/hasMore}}{{/allParams}}) -> Result<{{^returnType}}(){{/returnType}}{{#returnType}}{{{returnType}}}{{/returnType}}, Error<serde_json::Value>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
 {{#hasAuthMethods}}
@@ -110,35 +109,41 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static>{{classn
         let method = hyper::Method::{{httpMethod}};
 
         let query_string = {
-            let mut query = ::url::form_urlencoded::Serializer::new(String::new());
+            let mut api_query = ::url::form_urlencoded::Serializer::new(String::new());
             let has_query_params = {{#hasQueryParams}}true{{/hasQueryParams}}{{^hasQueryParams}}false{{/hasQueryParams}};
 {{#queryParams}}
+    {{^required}}
+        if let Some({{paramName}}) = {{paramName}} {
+    {{/required}}
         {{#isPrimitiveType}}
-            query.append_pair("{{baseName}}", &{{paramName}}.outline_print() );
+            api_query.append_pair("{{baseName}}", &{{paramName}}.outline_print() );
         {{/isPrimitiveType}}
         {{^isPrimitiveType}}
           {{#isListContainer}}
             for p in {{paramName}}.iter() {
-                query.append_pair("{{baseName}}", &p.to_string());
+                api_query.append_pair("{{baseName}}", &p.outline_print());
             }
           {{/isListContainer}}
           {{^isListContainer}}
-            query.append_pair("{{baseName}}", &{{paramName}}.to_string());
+            api_query.append_pair("{{baseName}}", &{{paramName}}.outline_print());
           {{/isListContainer}}
         {{/isPrimitiveType}}
+    {{^required}}
+        }
+    {{/required}}
 {{/queryParams}}
 {{#hasAuthMethods}}
             for (key, val) in &auth_query {
-                query.append_pair(key, val);
+                api_query.append_pair(key, val);
             }
 {{/hasAuthMethods}}
             if has_query_params{{#hasAuthMethods}} || auth_query.len()>0 {{/hasAuthMethods}} {
-                format!("/?{}", query.finish())
+                format!("/?{}", api_query.finish())
             } else {
                 "".to_string()
             }
         };
-        let uri_str = format!("{}{{{path}}}{}", configuration.base_path, query_string{{#pathParams}}, {{baseName}}={{paramName}}{{#isListContainer}}.join(",").as_ref(){{/isListContainer}}{{/pathParams}});
+        let uri_str = format!("{}/{{{path}}}{}", configuration.base_path, query_string{{#pathParams}}, {{baseName}}={{paramName}}.outline_print(){{#isListContainer}}.join(",").as_ref(){{/isListContainer}}{{/pathParams}});
 
         // TODO(farcaller): handle error
         // if let Err(e) = uri {
@@ -162,7 +167,7 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static>{{classn
         {{#hasHeaderParams}}
         {
             {{#headerParams}}
-            headers.insert("{{baseName}}", {{paramName}}{{#isListContainer}}.join(",").as_ref(){{/isListContainer}});
+            headers.insert("{{baseName}}", {{paramName}}{{#isListContainer}}.join(",").as_ref(){{/isListContainer}}.parse().unwrap());
             {{/headerParams}}
         }
         {{/hasHeaderParams}}
