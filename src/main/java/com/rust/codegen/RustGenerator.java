@@ -1,5 +1,6 @@
 package com.rust.codegen;
 
+import com.google.gson.Gson;
 import com.ibm.icu.text.Transliterator;
 import io.swagger.codegen.v3.*;
 import io.swagger.codegen.v3.generators.DefaultCodegenConfig;
@@ -13,7 +14,7 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 import java.io.File;
 
-import static io.swagger.codegen.v3.CodegenConstants.IS_ENUM_EXT_NAME;
+import static io.swagger.codegen.v3.CodegenConstants.*;
 import static io.swagger.codegen.v3.generators.handlebars.ExtensionHelper.getBooleanValue;
 
 public class RustGenerator extends DefaultCodegenConfig {
@@ -31,6 +32,7 @@ public class RustGenerator extends DefaultCodegenConfig {
   protected String apiFolder = "src/apis";
   protected String testsFolder = "src/tests";
   protected String modelFolder= "src/models";
+  protected HashMap<String, String> arrayModels;
   protected Transliterator transliterator;
 
   /**
@@ -79,6 +81,8 @@ public class RustGenerator extends DefaultCodegenConfig {
     outputFolder = "generated-code/rust";
 
     packageVersion = "0.0.0";
+
+    arrayModels = new HashMap<>();
 
     /**
      * Models.  You can write model files using the modelTemplateFiles map.
@@ -184,8 +188,8 @@ public class RustGenerator extends DefaultCodegenConfig {
      */
     languageSpecificPrimitives = new HashSet<String>(
             Arrays.asList(
-                    "i8", "i16", "i32", "i64",
-                    "u8", "u16", "u32", "u64",
+                    "i8", "i16", "i32", "i64", "i128",
+                    "u8", "u16", "u32", "u64", "u128",
                     "f32", "f64", "str", "String",
                     "char", "bool", "Vec<u8>", "File")
     );
@@ -296,6 +300,7 @@ public class RustGenerator extends DefaultCodegenConfig {
 
     boolean addedTimeImport = false;
     List<Map<String, Object>> models = (List<Map<String, Object>>) objs.get("models");
+    ArrayList<Map<String, Object>> modelsToRemove = new ArrayList<>();
     for (Map<String, Object> m : models) {
       Object v = m.get("model");
       if (v instanceof CodegenModel) {
@@ -307,6 +312,15 @@ public class RustGenerator extends DefaultCodegenConfig {
         if(isEnum) {
           model.setName(toModelName(model.getName()));
         }
+
+        boolean isArray = getBooleanValue(model, IS_ARRAY_MODEL_EXT_NAME);
+        if (isArray) {
+          System.out.printf("Model %s is an array!! Model: %s\n", model.getName(), new Gson().toJson(model));
+          arrayModels.put(model.getClassname(), model.getArrayModelType());
+          modelsToRemove.add(m);
+          continue;
+        }
+
         for (CodegenProperty param : model.vars) {
           if(allFieldsIsRequired) {
             param.setRequired(true);
@@ -320,16 +334,16 @@ public class RustGenerator extends DefaultCodegenConfig {
             String extension = null;
             switch (format) {
               case "float":
-                extension = "x-is-float";
+                extension = IS_FLOAT_EXT_NAME;
                 break;
               case "double":
-                extension = "x-is-double";
+                extension = IS_DOUBLE_EXT_NAME;
                 break;
               case "int32":
-                extension = "x-is-int";
+                extension = IS_INTEGER_EXT_NAME;
                 break;
               case "int64":
-                extension = "x-is-long";
+                extension = IS_LONG_EXT_NAME;
                 break;
             }
             if(extension!=null) {
@@ -348,6 +362,7 @@ public class RustGenerator extends DefaultCodegenConfig {
         model.setRequiredVars(requiredFields);
       }
     }
+    //models.removeAll(modelsToRemove);
     // recursively add import for mapping one type to multiple imports
     List<Map<String, String>> recursiveImports = (List<Map<String, String>>) objs.get("imports");
     if (recursiveImports == null)
@@ -536,6 +551,7 @@ public class RustGenerator extends DefaultCodegenConfig {
   public String getTypeDeclaration(Schema schema) {
     Schema inner;
     String schemaType = this.getSchemaType(schema);
+
     if (schema instanceof ArraySchema) {
       ArraySchema arraySchema = (ArraySchema)schema;
       inner = arraySchema.getItems();
@@ -572,7 +588,7 @@ public class RustGenerator extends DefaultCodegenConfig {
     } else if (schema instanceof BooleanSchema) {
       return "bool";
     } else if (schema instanceof DateTimeSchema) {
-      return "NaiveDateTime";
+      return "DateTime<Utc>";
     } else if (schema instanceof DateSchema) {
       schema.setFormat("date");
       return "NaiveDate";
@@ -581,7 +597,18 @@ public class RustGenerator extends DefaultCodegenConfig {
         return (String)this.typeMapping.get(schemaType);
       } else if (schema.get$ref() != null) {
         String[] refh = schema.get$ref().split("/");
-        return String.format("%s", this.toModelName(refh[refh.length-1]));
+        String modelName = this.toModelName(refh[refh.length-1]);
+
+        if (schemaType.equals("array") && arrayModels.containsKey(modelName)) {
+          String innerType = arrayModels.get(modelName);
+          if (!this.typeMapping.containsKey(innerType)) {
+            innerType = toModelName(innerType);
+          }
+          System.out.printf("!!! Got array schema %s with inner type %s\n", modelName, innerType);
+          return "Vec<" + innerType + ">";
+        } else {
+          return String.format("%s", modelName);
+        }
       } else if (this.typeMapping.containsValue(schemaType)) {
         return schemaType;
       } else {
