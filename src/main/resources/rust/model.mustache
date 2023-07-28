@@ -21,7 +21,7 @@ use crate::serialize_quoted_numbers_opt;
 //Uncomment this to deal with limited rfc support on server side
 //use crate::datetime_serializer::*;
 
-{{^isEnum}}
+{{#hasVars}}
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct {{classname}} {
 {{#vars}}
@@ -45,6 +45,7 @@ pub struct {{classname}} {
   //Uncomment this also to deal with limited rfc support on server side
   //#[serde(serialize_with = "serialize_dt", deserialize_with = "deserialize_dt")]
   {{/isDateTime}}
+  {{#description}}///{{{description}}}{{/description}}
   {{name}}: {{^required}}Option<{{/required}}{{{datatype}}}{{^required}}>{{/required}}{{#hasMore}},{{/hasMore}} {{#example}} // {{{example}}} {{/example}}
 {{/vars}}
 }
@@ -67,7 +68,7 @@ impl {{classname}} {
     self.{{name}} = {{^required}}Some({{name}}){{/required}}{{#required}}{{name}}{{/required}};
     self
   }
-
+  {{#description}}///{{{description}}}{{/description}}
   pub fn {{name}}(&self) -> {{^required}}Option<{{/required}}&{{{datatype}}}{{^required}}>{{/required}} {
     {{#required}}&{{/required}}self.{{name}}{{^required}}.as_ref(){{/required}}
   }
@@ -108,7 +109,7 @@ impl {{classname}} {
   }
 
 }
-{{/isEnum}}
+{{/hasVars}}
 {{#isEnum}}
 #[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum {{name}} {
@@ -140,6 +141,35 @@ impl<'a> OutlinePrint<'a> for {{name}} {
 }
 {{/isEnum}}
 
+{{#isAlias}}
 
+//{{name}} is an alias
+#[derive(Clone, Debug, PartialOrd, Ord, Serialize, Deserialize, PartialEq, Eq, Hash, Default)]
+#[repr(transparent)]
+#[serde(transparent)]
+pub struct {{name}}({{{dataType}}});
+
+impl crate::fmt::Display for {{name}} {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+impl From<{{{dataType}}}> for {{name}} {
+    fn from(v: {{{dataType}}}) -> Self {
+        Self(v)
+    }
+}
+impl<'a> crate::OutlinePrint<'a> for {{name}} {
+    fn outline_print(&'a self) -> String {
+        format!("{:?}", self)
+    }
+}
+{{/isAlias}}
+
+{{#isContainer}}
+
+pub type {{name}} = Vec<{{{arrayModelType}}}>;
+
+{{/isContainer}}
 {{/model}}
 {{/models}}
