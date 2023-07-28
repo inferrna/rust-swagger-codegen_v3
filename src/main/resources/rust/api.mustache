@@ -41,6 +41,19 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static> {{{clas
 pub trait {{classname}} {
 {{#operations}}
 {{#operation}}
+///
+/// {{summary}}
+///
+/// {{notes}}
+///
+/// # Arguments
+///
+{{#allParams}}
+    /// * `{{paramName}}` {{this.description}}{{#required}} (required){{/required}}{{^required}} (optional{{#defaultValue}}, default to {{{.}}}{{/defaultValue}}){{/required}}
+    /// {{#example}}Example: {{{example}}}{{/example}}
+    /// {{this.notes}}
+    ///
+{{/allParams}}
     async fn {{{operationId}}}(&self, {{#allParams}}{{paramName}}: {{^required}}Option<{{/required}}{{#isString}}&str{{/isString}}{{#isUuid}}&str{{/isUuid}}{{^isString}}{{^isUuid}}{{^isPrimitiveType}}{{^isContainer}}crate::models::{{/isContainer}}{{/isPrimitiveType}}{{{dataType}}}{{/isUuid}}{{/isString}}{{^required}}>{{/required}}{{#hasMore}}, {{/hasMore}}{{/allParams}}) -> Result<{{^returnType}}(){{/returnType}}{{#returnType}}{{{returnType}}}{{/returnType}}, Error<serde_json::Value>>;
 {{/operation}}
 {{/operations}}
@@ -50,19 +63,6 @@ pub trait {{classname}} {
 impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static>{{classname}} for {{classname}}Client<C> {
 {{#operations}}
 {{#operation}}
- ///
- /// {{summary}}
- ///
- /// {{notes}}
- ///
- /// # Arguments
- ///
- {{#allParams}}
- /// * `{{paramName}}` {{this.description}}{{#required}} (required){{/required}}{{^required}} (optional{{#defaultValue}}, default to {{{.}}}{{/defaultValue}}){{/required}}
- /// {{#example}}Example: {{{example}}}{{/example}}
- /// {{this.notes}}
- ///
- {{/allParams}}
     async fn {{{operationId}}}(&self, {{#allParams}}{{paramName}}: {{^required}}Option<{{/required}}{{#isString}}&str{{/isString}}{{#isUuid}}&str{{/isUuid}}{{^isString}}{{^isUuid}}{{^isPrimitiveType}}{{^isContainer}}crate::models::{{/isContainer}}{{/isPrimitiveType}}{{{dataType}}}{{/isUuid}}{{/isString}}{{^required}}>{{/required}}{{#hasMore}}, {{/hasMore}}{{/allParams}}) -> Result<{{^returnType}}(){{/returnType}}{{#returnType}}{{{returnType}}}{{/returnType}}, Error<serde_json::Value>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
