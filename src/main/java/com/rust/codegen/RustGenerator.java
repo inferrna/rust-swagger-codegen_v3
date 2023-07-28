@@ -106,11 +106,11 @@ public class RustGenerator extends DefaultCodegenConfig {
     apiTemplateFiles.put(
             "api.mustache",   // the template to use
             ".rs");       // the extension for each file to write
-
+/*
     apiTemplateFiles.put(
             "api2nd.mustache",   // the template to use
             "2nd.rs");       // the extension for each file to write
-
+*/
     modelDocTemplateFiles.put("model_doc.mustache", ".md");
     apiDocTemplateFiles.put("api_doc.mustache", ".md");
 
