@@ -22,6 +22,7 @@ public class RustGenerator extends DefaultCodegenConfig {
   static Logger LOGGER = LoggerFactory.getLogger(RustGenerator.class);
   private final boolean useDecimal;
   private final boolean allFieldsIsRequired;
+  private final boolean allParamsIsRequired;
   // source folder where to write the files
   protected String sourceFolder = "src";
   protected String apiVersion = "1.0.0";
@@ -74,6 +75,9 @@ public class RustGenerator extends DefaultCodegenConfig {
     allFieldsIsRequired = Optional.ofNullable(System.getProperty("allFieldsIsRequired"))
             .map(v -> v.equals("true"))
             .orElse(false);
+    allParamsIsRequired = Optional.ofNullable(System.getProperty("allParamsIsRequired"))
+            .map(v -> v.equals("true"))
+            .orElse(false);
     useDecimal = Optional.ofNullable(System.getProperty("useDecimal"))
             .map(v -> v.equals("true"))
             .orElse(true);
@@ -102,10 +106,11 @@ public class RustGenerator extends DefaultCodegenConfig {
     apiTemplateFiles.put(
             "api.mustache",   // the template to use
             ".rs");       // the extension for each file to write
-    /*apiTemplateFiles.put(
+
+    apiTemplateFiles.put(
             "api2nd.mustache",   // the template to use
             "2nd.rs");       // the extension for each file to write
-    */
+
     modelDocTemplateFiles.put("model_doc.mustache", ".md");
     apiDocTemplateFiles.put("api_doc.mustache", ".md");
 
@@ -140,7 +145,7 @@ public class RustGenerator extends DefaultCodegenConfig {
                     "Self", "self", "sizeof", "static", "struct",
                     "super", "trait", "true", "type", "typeof",
                     "unsafe", "unsized", "use", "virtual", "where",
-                    "while", "yield"
+                    "while", "yield", "Decimal"
             )
     );
 
@@ -190,7 +195,7 @@ public class RustGenerator extends DefaultCodegenConfig {
             Arrays.asList(
                     "i8", "i16", "i32", "i64", "i128",
                     "u8", "u16", "u32", "u64", "u128",
-                    "f32", "f64", "str", "String",
+                    "f32", "f64", "str", "String", "Decimal",
                     "char", "bool", "Vec<u8>", "File")
     );
 
@@ -309,23 +314,20 @@ public class RustGenerator extends DefaultCodegenConfig {
 
         //Here we fix enum name
         boolean isEnum = getBooleanValue(model, IS_ENUM_EXT_NAME);
-        if(isEnum) {
-          model.setName(toModelName(model.getName()));
-        }
+        model.setName(toModelName(model.getName()));
 
         boolean isArray = getBooleanValue(model, IS_ARRAY_MODEL_EXT_NAME);
+
         if (isArray) {
-          System.out.printf("Model %s is an array!! Model: %s\n", model.getName(), new Gson().toJson(model));
+          //System.out.printf("Model %s is an array!! Model: %s\n", model.getName(), new Gson().toJson(model));
           arrayModels.put(model.getClassname(), model.getArrayModelType());
+          model.setArrayModelType(toModelName(model.getArrayModelType()));
           modelsToRemove.add(m);
           continue;
         }
 
         for (CodegenProperty param : model.vars) {
-          if(allFieldsIsRequired) {
-            param.setRequired(true);
-          }
-          if (!param.getIsNullable() || param.required) {
+          if ((allFieldsIsRequired && !param.getIsNullable()) || param.required) {
             param.required = true;
             requiredFields.add(param);
           }
@@ -351,11 +353,13 @@ public class RustGenerator extends DefaultCodegenConfig {
               param.vendorExtensions.put("x-is-numeric", true); //Then check it in template as isString and isNumeric same time
             }
           }
-          if (!addedTimeImport && param.baseType.equals("DateTime")) {
-            imports.add(createMapping("use", "chrono::{NaiveDateTime, DateTime, Utc, Local, TimeZone, SecondsFormat, Utc}"));
-            addedTimeImport = true;
-          } else {
-            imports.add(createMapping("use", param.baseType));
+          if (param.baseType != null) {
+            if (!addedTimeImport && param.baseType.equals("DateTime")) {
+              imports.add(createMapping("use", "chrono::{NaiveDateTime, DateTime, Utc, Local, TimeZone, SecondsFormat, Utc}"));
+              addedTimeImport = true;
+            } else {
+              imports.add(createMapping("use", param.baseType));
+            }
           }
         }
         System.out.printf("Set %d required fields for model %s%n", requiredFields.size(), model.getName());
@@ -396,7 +400,11 @@ public class RustGenerator extends DefaultCodegenConfig {
   }
 
   String transliterate(String inputText) {
+    if (inputText != null) {
       return transliterator.transliterate(inputText);
+    } else {
+      return inputText;
+    }
   }
 
   @Override
@@ -645,9 +653,26 @@ public class RustGenerator extends DefaultCodegenConfig {
     @SuppressWarnings("unchecked")
     List<CodegenOperation> operations = (List<CodegenOperation>) objectMap.get("operation");
     for (CodegenOperation operation : operations) {
-      // http method verb conversion (e.g. PUT => Put)
+      List<CodegenParameter> requiredParams = new ArrayList<>();
       operation.httpMethod = pascalize(operation.httpMethod.toUpperCase());
       operation.baseName = pascalize(operation.baseName.toUpperCase());
+      for (CodegenParameter param : operation.allParams) {
+        if ((allParamsIsRequired && !param.getIsNullable())) {
+          param.required = true;
+        }
+      }
+      for (CodegenParameter param : operation.queryParams) {
+        if ((allParamsIsRequired && !param.getIsNullable())) {
+          param.required = true;
+        }
+      }
+      for (CodegenParameter param : operation.bodyParams) {
+        if ((allParamsIsRequired && !param.getIsNullable())) {
+          param.required = true;
+        }
+      }
+      operation.requiredParams = requiredParams;
+
     }
 
     return objs;
