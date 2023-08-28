@@ -1,15 +1,12 @@
 package com.rust.codegen;
 
 import com.google.gson.Gson;
-import com.ibm.icu.text.Transliterator;
 import io.swagger.codegen.v3.*;
 import io.swagger.codegen.v3.generators.DefaultCodegenConfig;
 import io.swagger.codegen.v3.generators.util.OpenAPIUtil;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.media.*;
-import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
 
 import java.util.*;
 import java.io.File;
@@ -19,7 +16,6 @@ import static io.swagger.codegen.v3.generators.handlebars.ExtensionHelper.getBoo
 
 public class RustGenerator extends DefaultCodegenConfig {
 
-  static Logger LOGGER = LoggerFactory.getLogger(RustGenerator.class);
   private final boolean useDecimal;
   private final boolean allFieldsIsRequired;
   private final boolean allParamsIsRequired;
@@ -34,7 +30,6 @@ public class RustGenerator extends DefaultCodegenConfig {
   protected String testsFolder = "src/tests";
   protected String modelFolder= "src/models";
   protected HashMap<String, String> arrayModels;
-  protected Transliterator transliterator;
 
   /**
    * Configures the type of generator.
@@ -68,9 +63,6 @@ public class RustGenerator extends DefaultCodegenConfig {
 
   public RustGenerator() {
     super();
-    //String rules = "Any-Latin; Latin-ASCII";
-    //transliterator = Transliterator.createFromRules("transliterator", rules, Transliterator.FORWARD);
-    transliterator = Transliterator.getInstance("Any-Latin");
 
     allFieldsIsRequired = Optional.ofNullable(System.getProperty("allFieldsIsRequired"))
             .map(v -> v.equals("true"))
@@ -106,11 +98,11 @@ public class RustGenerator extends DefaultCodegenConfig {
     apiTemplateFiles.put(
             "api.mustache",   // the template to use
             ".rs");       // the extension for each file to write
-/*
+
     apiTemplateFiles.put(
             "api2nd.mustache",   // the template to use
             "2nd.rs");       // the extension for each file to write
-*/
+
     modelDocTemplateFiles.put("model_doc.mustache", ".md");
     apiDocTemplateFiles.put("api_doc.mustache", ".md");
 
@@ -206,6 +198,7 @@ public class RustGenerator extends DefaultCodegenConfig {
     typeMapping.put("int32", "i32");
     typeMapping.put("long", "i64");
     typeMapping.put("int64", "i64");
+    typeMapping.put("BigDecimal", "i128");
     if(useDecimal) {
       typeMapping.put("number", "Decimal");
       typeMapping.put("float", "Decimal");
@@ -217,6 +210,7 @@ public class RustGenerator extends DefaultCodegenConfig {
     }
     typeMapping.put("boolean", "bool");
     typeMapping.put("string", "String");
+    typeMapping.put("String", "String");
     typeMapping.put("UUID", "String");
     typeMapping.put("date", "String");
     typeMapping.put("DateTime", "String");
@@ -317,7 +311,7 @@ public class RustGenerator extends DefaultCodegenConfig {
         model.setName(toModelName(model.getName()));
 
         boolean isArray = getBooleanValue(model, IS_ARRAY_MODEL_EXT_NAME);
-
+        //TODO: fix openfigi generation
         if (isArray) {
           //System.out.printf("Model %s is an array!! Model: %s\n", model.getName(), new Gson().toJson(model));
           arrayModels.put(model.getClassname(), model.getArrayModelType());
@@ -399,18 +393,9 @@ public class RustGenerator extends DefaultCodegenConfig {
     return (outputFolder + File.separator + modelFolder).replace("/", File.separator);
   }
 
-  String transliterate(String inputText) {
-    if (inputText != null) {
-      return transliterator.transliterate(inputText);
-    } else {
-      return inputText;
-    }
-  }
-
   @Override
   public String toVarName(String name) {
     // replace - with _ e.g. created-at => created_at
-    name = transliterate(name);
     name = sanitizeName(name.replaceAll("-", "_"));
 
 
@@ -448,12 +433,11 @@ public class RustGenerator extends DefaultCodegenConfig {
 
   @Override
   public String toModelFilename(String name) {
-    name = transliterate(name);
-    if (!StringUtils.isEmpty(modelNamePrefix)) {
+    if (!modelNamePrefix.isEmpty()) {
       name = modelNamePrefix + "_" + name;
     }
 
-    if (!StringUtils.isEmpty(modelNameSuffix)) {
+    if (!modelNameSuffix.isEmpty()) {
       name = name + "_" + modelNameSuffix;
     }
 
@@ -477,7 +461,6 @@ public class RustGenerator extends DefaultCodegenConfig {
   @Override
   public String toApiTestFilename(String name) {
     // replace - with _ e.g. created-at => created_at
-    name = transliterate(name);
     name = name.replaceAll("-", "_"); // FIXME: a parameter should not be assigned. Also declare the methods parameters as 'final'.
 
     // e.g. PetApi.rs => pet_api.rs
@@ -486,7 +469,6 @@ public class RustGenerator extends DefaultCodegenConfig {
 
   @Override
   public String toApiFilename(String name) {
-    name = transliterate(name);
     // replace - with _ e.g. created-at => created_at
     name = name.replaceAll("-", "_"); // FIXME: a parameter should not be assigned. Also declare the methods parameters as 'final'.
 
@@ -500,7 +482,6 @@ public class RustGenerator extends DefaultCodegenConfig {
   }
   @Override
   public String toApiName(String name) {
-    name = transliterate(name);
     // replace - with _ e.g. created-at => created_at
     name = name.replaceAll("-", "_"); // FIXME: a parameter should not be assigned. Also declare the methods parameters as 'final'.
 
@@ -564,13 +545,33 @@ public class RustGenerator extends DefaultCodegenConfig {
       ArraySchema arraySchema = (ArraySchema)schema;
       inner = arraySchema.getItems();
       return "Vec<" + this.getTypeDeclaration(inner) + ">";
+    } else if (schema.get$ref() != null) {
+      String[] refh = schema.get$ref().split("/");
+      String modelName = this.toModelName(refh[refh.length-1]);
+
+      if (schemaType.equals("array") && arrayModels.containsKey(modelName)) {
+        String innerType = arrayModels.get(modelName);
+        if (!this.typeMapping.containsKey(innerType)) {
+          innerType = toModelName(innerType);
+        } else {
+          innerType = this.typeMapping.get(innerType);
+        }
+        System.out.printf("!!! Got array schema %s with inner type %s\n", modelName, innerType);
+        return "Vec<" + innerType + ">";
+      } else {
+        return String.format("%s", modelName);
+      }
     } else if (schema instanceof MapSchema) {
       MapSchema mapSchema = (MapSchema)schema;
       inner = (Schema)mapSchema.getAdditionalProperties();
       return "::std::collections::HashMap<String, " + this.getTypeDeclaration(inner) + ">";
     } else if (schema instanceof StringSchema) {
       String format = schema.getFormat();
-      if(format != null && typeMapping.containsKey(format)) {
+      List<String> enum_vals = schema.getEnum();
+      if(enum_vals != null && enum_vals.size()>0) {
+        System.out.printf("WARNING: enum schema %s -> %s %n", schema.getType(), enum_vals.get(0));
+        return schemaType;
+      } else if(format != null && typeMapping.containsKey(format)) {
         return typeMapping.get(format);
       } else {
         return "String";
@@ -603,20 +604,6 @@ public class RustGenerator extends DefaultCodegenConfig {
     } else {
       if (this.typeMapping.containsKey(schemaType)) {
         return (String)this.typeMapping.get(schemaType);
-      } else if (schema.get$ref() != null) {
-        String[] refh = schema.get$ref().split("/");
-        String modelName = this.toModelName(refh[refh.length-1]);
-
-        if (schemaType.equals("array") && arrayModels.containsKey(modelName)) {
-          String innerType = arrayModels.get(modelName);
-          if (!this.typeMapping.containsKey(innerType)) {
-            innerType = toModelName(innerType);
-          }
-          System.out.printf("!!! Got array schema %s with inner type %s\n", modelName, innerType);
-          return "Vec<" + innerType + ">";
-        } else {
-          return String.format("%s", modelName);
-        }
       } else if (this.typeMapping.containsValue(schemaType)) {
         return schemaType;
       } else {
@@ -681,6 +668,9 @@ public class RustGenerator extends DefaultCodegenConfig {
   public void postProcessParameter(CodegenParameter parameter) {
     super.postProcessParameter(parameter);
     String dataType = parameter.getDataType();
+    /*if (parameter.paramName.toLowerCase().equals("format")) {
+      System.out.printf("Format schema: %s\n", new Gson().toJson(parameter));
+    }*/
     if(dataType != null && dataType.equals("DateTime")) {
       parameter.dataFormat = "datetime";
       if(parameter.example == null) parameter.example = "2019-03-19T18:38:33.131642+03:00";

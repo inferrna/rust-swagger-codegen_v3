@@ -26,6 +26,35 @@ pub mod serialize_quoted_numbers_opt;
 
 //mod tests;  //Put testing data and token to tests before uncomment
 
+pub fn escape_uri_param(param: &str) -> String {
+    let mut escaped = String::new();
+
+    for c in param.chars() {
+        match c {
+                'A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_' | '.' | '~' => escaped.push(c),
+            _ => {
+                escaped.push('%');
+                escaped.push_str(&format!("{:02X}", c as u8));
+            }
+        }
+    }
+
+    escaped
+}
+
+
+pub trait ToUriParam<'a>: OutlinePrint<'a> {
+    fn to_uri_param(&'a self) -> String {
+        self.outline_print()
+    }
+}
+
+impl<'a> ToUriParam<'a> for &'a str {
+    fn to_uri_param(&'a self) -> String {
+        escape_uri_param(&self)
+    }
+}
+
 pub trait OutlinePrint<'a>: fmt::Display {
     fn outline_print(&'a self) -> String {
         format!("{}", self)

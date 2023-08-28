@@ -21,6 +21,7 @@ use crate::models::*;
 use super::{Error, configuration};
 use headers::{Authorization, Header};
 use headers::authorization::Credentials;
+use crate::ToUriParam;
 {{! #isUseDecimal}}
 use rust_decimal::Decimal;
 {{! /isUseDecimal}}
@@ -143,7 +144,7 @@ impl<C: hyper::client::connect::Connect + Clone + Send + Sync + 'static>{{classn
                 "".to_string()
             }
         };
-        let uri_str = format!("{}/{{{path}}}{}", configuration.base_path, query_string{{#pathParams}}, {{baseName}}={{paramName}}.outline_print(){{#isListContainer}}.join(",").as_ref(){{/isListContainer}}{{/pathParams}});
+        let uri_str = format!("{}/{{{path}}}{}", configuration.base_path, query_string{{#pathParams}}, {{baseName}}={{paramName}}{{#isString}}.to_uri_param(){{/isString}}{{^isString}}.outline_print(){{/isString}}{{#isListContainer}}.join(",").as_ref().to_uri_param(){{/isListContainer}}{{/pathParams}});
 
         // TODO(farcaller): handle error
         // if let Err(e) = uri {
